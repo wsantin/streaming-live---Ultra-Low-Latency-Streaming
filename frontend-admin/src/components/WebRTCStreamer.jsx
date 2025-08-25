@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import io from 'socket.io-client';
+import { API_URL } from '../config/constants';
 
 const WebRTCStreamer = () => {
   const [isStreaming, setIsStreaming] = useState(false);
@@ -24,8 +25,8 @@ const WebRTCStreamer = () => {
 
   useEffect(() => {
     // Connect to signaling server
-    socketRef.current = io('http://localhost:5001', {
-      transports: ['websocket']
+    socketRef.current = io(API_URL, {
+      transports: ['polling', 'websocket']
     });
 
     socketRef.current.on('connect', () => {

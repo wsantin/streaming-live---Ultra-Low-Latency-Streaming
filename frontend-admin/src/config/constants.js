@@ -1,29 +1,9 @@
 // Frontend Admin Configuration Constants
 // ========================================
 
-// Server Configuration
-const SERVER_CONFIG = {
-  // Backend API Server - MediaMTX + SRS Architecture
-  BACKEND: {
-    HOST: '192.168.1.33',
-    PORT: 5001,
-    PROTOCOL: 'http'
-  },
-  
-  // WebSocket Server
-  WEBSOCKET: {
-    HOST: '192.168.1.33',
-    PORT: 5001,
-    PROTOCOL: 'ws'
-  },
-  
-};
-
 // Constructed URLs
-export const API_URL = `${SERVER_CONFIG.BACKEND.PROTOCOL}://${SERVER_CONFIG.BACKEND.HOST}:${SERVER_CONFIG.BACKEND.PORT}`;
-export const WS_URL = `${SERVER_CONFIG.WEBSOCKET.PROTOCOL}://${SERVER_CONFIG.WEBSOCKET.HOST}:${SERVER_CONFIG.WEBSOCKET.PORT}`;
-
-
+export const API_URL = import.meta.env.VITE_API_URL
+console.log("API_URL: ",API_URL)
 // API Endpoints - WebRTC Only
 export const API_ENDPOINTS = {
   // WebRTC Stats & Health
@@ -40,9 +20,7 @@ export const UI_CONFIG = {
 };
 
 export default {
-  SERVER_CONFIG,
   API_URL,
-  WS_URL,
   API_ENDPOINTS,
   UI_CONFIG
 };

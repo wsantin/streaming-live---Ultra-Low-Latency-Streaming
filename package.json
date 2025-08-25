@@ -1,0 +1,34 @@
+{
+  "name": "webrtc-streaming-system",
+  "version": "1.0.0",
+  "description": "Ultra-Low Latency WebRTC Streaming System with Dynamic Environment Management",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/start-dev.js",
+    "prod": "node scripts/start-prod.js",
+    "stop": "node scripts/stop-all.js",
+    "stop:dev": "node scripts/stop-dev.js",
+    "stop:prod": "node scripts/stop-prod.js",
+    "ip": "node scripts/detect-ip.js",
+    "tunnel": "node scripts/create-tunnels.js"
+  },
+  "keywords": [
+    "webrtc",
+    "streaming",
+    "p2p",
+    "ultra-low-latency",
+    "cloudflare-tunnel"
+  ],
+  "dependencies": {
+    "cross-spawn": "^7.0.3",
+    "chalk": "^5.3.0",
+    "ora": "^8.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

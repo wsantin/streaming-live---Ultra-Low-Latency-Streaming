@@ -1,0 +1,25 @@
+{
+  "name": "webrtc-performance-testing",
+  "version": "1.0.0",
+  "description": "WebRTC P2P Performance Testing Suite",
+  "main": "load-test-webrtc.js",
+  "scripts": {
+    "test": "node load-test-webrtc.js",
+    "test:light": "node load-test-webrtc.js --connections=25",
+    "test:medium": "node load-test-webrtc.js --connections=50", 
+    "test:heavy": "node load-test-webrtc.js --connections=100",
+    "test:extreme": "node load-test-webrtc.js --connections=200"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.7.2"
+  },
+  "keywords": [
+    "webrtc",
+    "performance",
+    "load-testing",
+    "socket.io",
+    "streaming"
+  ],
+  "author": "WebRTC Performance Team",
+  "license": "MIT"
+}

@@ -3,6 +3,7 @@ const cors = require('cors');
 const http = require('http');
 const socketIO = require('socket.io');
 const redis = require('redis');
+const os = require('os');
 const { v4: uuidv4 } = require('uuid');
 const WebRTCSignalingServer = require('./webrtc-signaling');
 const { 
@@ -10,7 +11,60 @@ const {
   CORS_CONFIG, 
   SOCKET_CONFIG 
 } = require('./config/constants');
-require('dotenv').config();
+
+// Función para detectar IP local automáticamente
+function detectLocalIP() {
+  const interfaces = os.networkInterfaces();
+  
+  // Intentar encontrar IP de WiFi o Ethernet primero
+  const preferredInterfaces = ['Wi-Fi', 'Ethernet', 'wlan0', 'eth0'];
+  
+  for (const interfaceName of preferredInterfaces) {
+    if (interfaces[interfaceName]) {
+      for (const iface of interfaces[interfaceName]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          console.log(`🌐 IP detectada en ${interfaceName}: ${iface.address}`);
+          return iface.address;
+        }
+      }
+    }
+  }
+  
+  // Fallback: buscar cualquier interfaz IPv4 no internal
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        console.log(`🌐 IP detectada en ${name}: ${iface.address}`);
+        return iface.address;
+      }
+    }
+  }
+  
+  return 'localhost';
+}
+
+const LOCAL_IP = detectLocalIP();
+
+// Load environment-specific .env file based on NODE_ENV
+const getEnvFile = () => {
+  const nodeEnv = process.env.NODE_ENV || 'development';
+  console.log(`🔧 Loading environment: ${nodeEnv}`);
+  
+  switch (nodeEnv) {
+    case 'prod':
+    case 'production':
+      return '.env.production';
+    case 'local':
+      return '.env.local';
+    case 'development':
+    default:
+      return '.env.local';
+  }
+};
+
+const envFile = getEnvFile();
+console.log(`📄 Loading env file: ${envFile}`);
+require('dotenv').config({ path: envFile });
 
 const app = express();
 const server = http.createServer(app);
@@ -87,6 +141,15 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Endpoint para obtener IP local para WebRTC
+app.get('/api/network/local-ip', (req, res) => {
+  res.json({
+    localIP: LOCAL_IP,
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Basic streaming state
 let streamingState = {
   isLive: false,
@@ -99,6 +162,11 @@ const io = socketIO(server, SOCKET_CONFIG);
 
 // Initialize WebRTC Signaling Server for Ultra-Low Latency Streaming
 const webrtcSignaling = new WebRTCSignalingServer(io);
+
+// Cleanup inactive sessions every 5 minutes
+setInterval(() => {
+  webrtcSignaling.cleanupInactiveSessions();
+}, 5 * 60 * 1000);
 
 // Función para obtener URLs según el entorno
 function getStreamUrls() {
@@ -176,6 +244,7 @@ app.post('/api/webrtc/broadcast', (req, res) => {
   webrtcSignaling.broadcastToAll(event, data);
   res.json({ success: true, event, recipients: webrtcSignaling.getStats().totalConnections });
 });
+
 
 // Browser streaming endpoint - simplified
 app.post('/api/stream/browser/start', async (req, res) => {
@@ -303,7 +372,8 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Start server
-const PORT = 5001;
+const PORT = process.env.PORT || 5001;
+console.log(`🔌 Backend will start on PORT: ${PORT}`);
 
 const environment = process.env.NODE_ENV || 'development';
 const useDocker = process.env.USE_DOCKER === 'true';
@@ -328,7 +398,8 @@ if (useDocker) {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`🎯 Health check: http://localhost:${PORT}/health`);
-  console.log(`🌐 Network access: http://192.168.1.33:${PORT}/health`);
-  console.log(`⚡ WebRTC API: http://192.168.1.33:${PORT}/api/webrtc/stats`);
-  console.log(`📱 Mobile access: http://192.168.1.33:${PORT}`);
+  console.log(`🌐 Network access: http://${LOCAL_IP}:${PORT}/health`);
+  console.log(`⚡ WebRTC API: http://${LOCAL_IP}:${PORT}/api/webrtc/stats`);
+  console.log(`📱 Local IP endpoint: http://${LOCAL_IP}:${PORT}/api/network/local-ip`);
+  console.log(`📱 Mobile access: http://${LOCAL_IP}:${PORT}`);
 });

@@ -2,27 +2,7 @@
 // ========================================
 
 // Server Configuration
-const SERVER_CONFIG = {
-  // Backend API Server - MediaMTX + SRS Architecture
-  BACKEND: {
-    HOST: '192.168.1.33',
-    PORT: 5001,
-    PROTOCOL: 'http'
-  },
-  
-  // WebSocket Server (same as backend)
-  WEBSOCKET: {
-    HOST: '192.168.1.33',
-    PORT: 5001,
-    PROTOCOL: 'ws'
-  },
-  
-};
-
-// Constructed URLs
-export const API_URL = `${SERVER_CONFIG.BACKEND.PROTOCOL}://${SERVER_CONFIG.BACKEND.HOST}:${SERVER_CONFIG.BACKEND.PORT}`;
-export const WS_URL = API_URL; // Socket.io uses the same URL as the API
-
+export const API_URL = import.meta.env.VITE_API_URL
 
 // API Endpoints - WebRTC Only
 export const API_ENDPOINTS = {
@@ -48,9 +28,7 @@ export const STREAM_STATES = {
 };
 
 export default {
-  SERVER_CONFIG,
   API_URL,
-  WS_URL,
   API_ENDPOINTS,
   UI_CONFIG,
   STREAM_STATES

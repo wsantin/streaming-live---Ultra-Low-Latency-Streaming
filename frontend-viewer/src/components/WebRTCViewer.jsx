@@ -14,6 +14,14 @@ const WebRTCViewer = () => {
     bytesReceived: 0
   });
   
+  // Debug logs state
+  const [debugLogs, setDebugLogs] = useState([]);
+  const [showLogs, setShowLogs] = useState(true);
+  const maxLogs = 50;
+  
+  // Check if debug mode is enabled via URL parameter
+  const isDebugMode = new URLSearchParams(window.location.search).get('debug') === 'true';
+  
   const videoRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const socketRef = useRef(null);
@@ -33,40 +41,68 @@ const WebRTCViewer = () => {
     rtcpMuxPolicy: 'require'
   };
 
+  // Debug logging function
+  const addDebugLog = (message, type = 'info') => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = {
+      id: Date.now() + Math.random(),
+      timestamp,
+      message,
+      type
+    };
+    
+    setDebugLogs(prevLogs => {
+      const newLogs = [logEntry, ...prevLogs];
+      return newLogs.slice(0, maxLogs);
+    });
+    
+    // También mostrar en consola del navegador
+    console.log(`[${timestamp}] ${message}`);
+  };
+
   useEffect(() => {
+    addDebugLog('🔄 Inicializando WebRTC Viewer...', 'info');
+    addDebugLog(`📱 User Agent: ${navigator.userAgent}`, 'info');
+    addDebugLog(`🌐 API URL: ${API_URL}`, 'info');
+    addDebugLog(`📺 Video support: ${!!navigator.mediaDevices}`, 'info');
+    addDebugLog(`🔒 HTTPS: ${window.location.protocol === 'https:'}`, 'info');
+    
     connectToSignalingServer();
     
     return () => {
+      addDebugLog('🔄 Limpiando componente...', 'warn');
       cleanup();
     };
   }, []);
 
   const connectToSignalingServer = () => {
     try {
+      addDebugLog('🔗 Conectando al servidor de señalización...', 'info');
       socketRef.current = io(API_URL, {
-        transports: ['websocket'],
+        transports: ['polling', 'websocket'],
         upgrade: true,
         timeout: 5001
       });
 
       socketRef.current.on('connect', () => {
-        console.log('🔗 Connected to WebRTC signaling server');
+        addDebugLog('✅ Conectado al servidor WebRTC', 'success');
         setIsConnected(true);
         setError(null);
         
         // Join as viewer
         const viewerId = 'ultra_viewer_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        addDebugLog(`👤 Uniéndose como viewer: ${viewerId}`, 'info');
         socketRef.current.emit('webrtc-viewer-join', { viewerId });
       });
 
       socketRef.current.on('disconnect', () => {
-        console.log('🔌 Disconnected from signaling server');
+        addDebugLog('🔌 Desconectado del servidor', 'warn');
         setIsConnected(false);
         setIsReceiving(false);
       });
 
       socketRef.current.on('webrtc-broadcaster-available', () => {
-        console.log('📡 Broadcaster available, requesting stream');
+        addDebugLog('📡 Broadcaster disponible, solicitando stream', 'success');
         requestStream();
       });
 
@@ -74,7 +110,7 @@ const WebRTCViewer = () => {
       socketRef.current.on('webrtc-ice-candidate', handleIceCandidate);
       
       socketRef.current.on('webrtc-broadcaster-stopped', () => {
-        console.log('📺 Broadcaster stopped streaming');
+        addDebugLog('📺 Broadcaster detuvo el streaming', 'warn');
         setIsReceiving(false);
         if (videoRef.current) {
           videoRef.current.srcObject = null;
@@ -82,36 +118,70 @@ const WebRTCViewer = () => {
       });
 
       socketRef.current.on('connect_error', (error) => {
-        console.error('❌ Socket connection error:', error);
+        addDebugLog(`❌ Error de conexión Socket: ${error.message}`, 'error');
         setError('Connection failed: ' + error.message);
         setIsConnected(false);
       });
 
     } catch (error) {
-      console.error('❌ Error connecting to signaling server:', error);
+      addDebugLog(`❌ Error conectando al servidor: ${error.message}`, 'error');
       setError('Failed to connect to server');
     }
   };
 
   const requestStream = async () => {
     try {
+      addDebugLog('📺 Solicitando stream...', 'info');
       setError(null);
       latencyStartTime.current = Date.now();
       
       // Create peer connection
+      addDebugLog('🔗 Creando conexión WebRTC...', 'info');
       peerConnectionRef.current = new RTCPeerConnection(rtcConfig);
       const peerConnection = peerConnectionRef.current;
       
       // Handle incoming stream
       peerConnection.ontrack = (event) => {
-        console.log('🎬 Received remote stream');
+        addDebugLog('🎬 Stream remoto recibido!', 'success');
         const [remoteStream] = event.streams;
         
+        addDebugLog(`📹 Stream info - Tracks: ${remoteStream.getTracks().length}`, 'info');
+        remoteStream.getTracks().forEach((track, index) => {
+          addDebugLog(`   Track ${index}: ${track.kind} - ${track.enabled ? 'enabled' : 'disabled'}`, 'info');
+        });
+        
         if (videoRef.current && remoteStream) {
+          addDebugLog('📺 Asignando stream al elemento video...', 'info');
           videoRef.current.srcObject = remoteStream;
+          
+          // Agregar listeners para eventos del video
+          videoRef.current.onloadeddata = () => {
+            addDebugLog('✅ Video data loaded!', 'success');
+          };
+          
+          videoRef.current.oncanplay = () => {
+            addDebugLog('✅ Video can play!', 'success');
+          };
+          
+          videoRef.current.onplaying = () => {
+            addDebugLog('▶️ Video is playing!', 'success');
+          };
+          
+          videoRef.current.onerror = (e) => {
+            addDebugLog(`❌ Video error: ${JSON.stringify(e)}`, 'error');
+          };
+          
+          videoRef.current.onstalled = () => {
+            addDebugLog('⚠️ Video stalled', 'warn');
+          };
+          
+          videoRef.current.onwaiting = () => {
+            addDebugLog('⏳ Video waiting for data', 'warn');
+          };
+          
           videoRef.current.play().catch(e => {
-            console.warn('Auto-play prevented:', e);
-            // Show play button overlay if needed
+            addDebugLog(`⚠️ Auto-play bloqueado: ${e.message}`, 'warn');
+            addDebugLog('💡 Toca la pantalla para reproducir manualmente', 'info');
           });
           
           setIsReceiving(true);
@@ -120,19 +190,25 @@ const WebRTCViewer = () => {
           if (latencyStartTime.current) {
             const initialLatency = Date.now() - latencyStartTime.current;
             setLatency(initialLatency);
+            addDebugLog(`⚡ Latencia inicial: ${initialLatency}ms`, 'success');
           }
           
           // Start stats monitoring
           startStatsMonitoring();
+        } else {
+          addDebugLog('❌ No se pudo asignar stream - video ref o stream nulo', 'error');
         }
       };
 
       // Handle ICE candidates
       peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
+          addDebugLog('🧊 Enviando ICE candidate...', 'info');
           socketRef.current.emit('webrtc-ice-candidate', {
             candidate: event.candidate
           });
+        } else {
+          addDebugLog('🧊 Todos los ICE candidates enviados', 'info');
         }
       };
 
@@ -140,13 +216,13 @@ const WebRTCViewer = () => {
       peerConnection.onconnectionstatechange = () => {
         const state = peerConnection.connectionState;
         setConnectionState(state);
-        console.log('🔗 WebRTC Connection state:', state);
+        addDebugLog(`🔗 Estado conexión WebRTC: ${state}`, 'info');
         
         if (state === 'connected') {
-          console.log('✅ WebRTC connection established');
+          addDebugLog('✅ Conexión WebRTC establecida!', 'success');
           measureActualLatency();
         } else if (state === 'disconnected' || state === 'failed') {
-          console.log('❌ WebRTC connection lost');
+          addDebugLog('❌ Conexión WebRTC perdida', 'error');
           setIsReceiving(false);
           setLatency(null);
           stopStatsMonitoring();
@@ -155,46 +231,63 @@ const WebRTCViewer = () => {
 
       // Handle ICE connection state
       peerConnection.oniceconnectionstatechange = () => {
-        console.log('🧊 ICE connection state:', peerConnection.iceConnectionState);
+        const iceState = peerConnection.iceConnectionState;
+        addDebugLog(`🧊 Estado ICE: ${iceState}`, 'info');
+        
+        if (iceState === 'connected' || iceState === 'completed') {
+          addDebugLog('✅ ICE conexión exitosa!', 'success');
+        } else if (iceState === 'failed') {
+          addDebugLog('❌ ICE conexión falló!', 'error');
+        }
       };
 
       // Create offer
+      addDebugLog('📝 Creando oferta WebRTC...', 'info');
       const offer = await peerConnection.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: true
       });
       
+      addDebugLog('📤 Configurando descripción local...', 'info');
       await peerConnection.setLocalDescription(offer);
       
       // Send offer to broadcaster
+      addDebugLog('📤 Enviando oferta al broadcaster...', 'info');
       socketRef.current.emit('webrtc-offer', {
         offer
       });
       
     } catch (error) {
-      console.error('❌ Error requesting stream:', error);
+      addDebugLog(`❌ Error solicitando stream: ${error.message}`, 'error');
       setError('Failed to request stream: ' + error.message);
     }
   };
 
   const handleAnswer = async ({ answer }) => {
     try {
+      addDebugLog('📥 Respuesta recibida del broadcaster...', 'info');
       if (peerConnectionRef.current) {
         await peerConnectionRef.current.setRemoteDescription(answer);
-        console.log('✅ Remote description set');
+        addDebugLog('✅ Descripción remota configurada', 'success');
+      } else {
+        addDebugLog('❌ No hay conexión peer para configurar respuesta', 'error');
       }
     } catch (error) {
-      console.error('❌ Error handling answer:', error);
+      addDebugLog(`❌ Error manejando respuesta: ${error.message}`, 'error');
     }
   };
 
   const handleIceCandidate = async ({ candidate }) => {
     try {
+      addDebugLog('🧊 ICE candidate recibido...', 'info');
       if (peerConnectionRef.current && candidate) {
         await peerConnectionRef.current.addIceCandidate(candidate);
+        addDebugLog('✅ ICE candidate agregado', 'success');
+      } else {
+        addDebugLog('⚠️ ICE candidate ignorado (conexión no disponible)', 'warn');
       }
     } catch (error) {
-      console.error('❌ Error adding ICE candidate:', error);
+      addDebugLog(`❌ Error agregando ICE candidate: ${error.message}`, 'error');
     }
   };
 
@@ -306,6 +399,29 @@ const WebRTCViewer = () => {
     return '#f44336'; // Red - Poor
   };
 
+  const copyAllLogs = async () => {
+    try {
+      const logsText = debugLogs.map(log => 
+        `[${log.timestamp}] ${log.message}`
+      ).join('\n');
+      
+      await navigator.clipboard.writeText(logsText);
+      addDebugLog('📋 Logs copiados al portapapeles!', 'success');
+    } catch (err) {
+      addDebugLog('❌ Error copiando logs: ' + err.message, 'error');
+      // Fallback para navegadores que no soportan clipboard
+      const textArea = document.createElement('textarea');
+      textArea.value = debugLogs.map(log => 
+        `[${log.timestamp}] ${log.message}`
+      ).join('\n');
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      addDebugLog('📋 Logs copiados (fallback)!', 'success');
+    }
+  };
+
   return (
     <div className="webrtc-viewer">
       <div className="viewer-header">
@@ -391,6 +507,49 @@ const WebRTCViewer = () => {
       {error && (
         <div className="error-message">
           ❌ {error}
+        </div>
+      )}
+
+      {/* Debug Logs Panel - Only show if debug=true in URL */}
+      {isDebugMode && (
+        <div className="debug-panel">
+          <div className="debug-header">
+            <h3>🔍 Debug Logs (Para diagnóstico móvil)</h3>
+            <button 
+              onClick={() => setShowLogs(!showLogs)} 
+              className="toggle-logs-btn"
+            >
+              {showLogs ? '🙈 Ocultar' : '👁️ Mostrar'}
+            </button>
+            <button 
+              onClick={() => setDebugLogs([])} 
+              className="clear-logs-btn"
+            >
+              🗑️ Limpiar
+            </button>
+            <button 
+              onClick={copyAllLogs} 
+              className="copy-logs-btn"
+              disabled={debugLogs.length === 0}
+            >
+              📋 Copiar Todo
+            </button>
+          </div>
+          
+          {showLogs && (
+            <div className="debug-logs">
+              {debugLogs.length === 0 ? (
+                <div className="no-logs">📝 Sin logs aún...</div>
+              ) : (
+                debugLogs.map(log => (
+                  <div key={log.id} className={`debug-log debug-log-${log.type}`}>
+                    <span className="log-time">[{log.timestamp}]</span>
+                    <span className="log-message">{log.message}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -552,6 +711,121 @@ const WebRTCViewer = () => {
           border-left: 4px solid #c62828;
         }
 
+        .debug-panel {
+          background: #1a1a1a;
+          color: #ffffff;
+          padding: 20px;
+          border-radius: 12px;
+          margin: 20px 0;
+          max-width: 100%;
+        }
+
+        .debug-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 15px;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .debug-header h3 {
+          margin: 0;
+          color: #00bcd4;
+        }
+
+        .toggle-logs-btn, .clear-logs-btn, .copy-logs-btn {
+          padding: 6px 12px;
+          font-size: 12px;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .toggle-logs-btn {
+          background: #4caf50;
+          color: white;
+        }
+
+        .clear-logs-btn {
+          background: #ff5722;
+          color: white;
+        }
+
+        .copy-logs-btn {
+          background: #2196f3;
+          color: white;
+        }
+
+        .copy-logs-btn:disabled {
+          background: #ccc;
+          cursor: not-allowed;
+          opacity: 0.5;
+        }
+
+        .toggle-logs-btn:hover, .clear-logs-btn:hover, .copy-logs-btn:hover:not(:disabled) {
+          opacity: 0.8;
+          transform: translateY(-1px);
+        }
+
+        .debug-logs {
+          max-height: 300px;
+          overflow-y: auto;
+          border: 1px solid #333;
+          border-radius: 8px;
+          padding: 10px;
+          background: #0a0a0a;
+        }
+
+        .no-logs {
+          text-align: center;
+          color: #666;
+          padding: 20px;
+        }
+
+        .debug-log {
+          margin: 4px 0;
+          padding: 6px 8px;
+          border-radius: 4px;
+          font-family: 'Courier New', monospace;
+          font-size: 12px;
+          border-left: 3px solid;
+        }
+
+        .debug-log-info {
+          background: rgba(33, 150, 243, 0.1);
+          border-left-color: #2196f3;
+          color: #e3f2fd;
+        }
+
+        .debug-log-success {
+          background: rgba(76, 175, 80, 0.1);
+          border-left-color: #4caf50;
+          color: #e8f5e8;
+        }
+
+        .debug-log-warn {
+          background: rgba(255, 152, 0, 0.1);
+          border-left-color: #ff9800;
+          color: #fff3e0;
+        }
+
+        .debug-log-error {
+          background: rgba(244, 67, 54, 0.1);
+          border-left-color: #f44336;
+          color: #ffebee;
+        }
+
+        .log-time {
+          color: #888;
+          margin-right: 8px;
+        }
+
+        .log-message {
+          color: inherit;
+        }
+
         .stats-panel {
           background: #f8f9fa;
           padding: 20px;
@@ -624,6 +898,41 @@ const WebRTCViewer = () => {
           
           .stats-grid {
             grid-template-columns: 1fr;
+          }
+          
+          .debug-panel {
+            margin: 10px 0;
+            padding: 15px;
+          }
+          
+          .debug-header {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          
+          .debug-header h3 {
+            text-align: center;
+            margin-bottom: 10px;
+          }
+          
+          .toggle-logs-btn, .clear-logs-btn, .copy-logs-btn {
+            flex: 1;
+            padding: 8px 12px;
+            font-size: 13px;
+          }
+          
+          .debug-logs {
+            max-height: 200px;
+            font-size: 11px;
+          }
+          
+          .debug-log {
+            font-size: 11px;
+            padding: 4px 6px;
+          }
+          
+          .webrtc-viewer {
+            padding: 10px;
           }
         }
       `}</style>

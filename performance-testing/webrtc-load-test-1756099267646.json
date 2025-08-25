@@ -1,0 +1,927 @@
+{
+  "timestamp": "2025-08-25T05:21:07.644Z",
+  "testConfig": {
+    "SERVER_URL": "http://192.168.1.37:5001",
+    "TOTAL_CONNECTIONS": 100,
+    "BATCH_SIZE": 10,
+    "BATCH_DELAY": 1000,
+    "TEST_DURATION": 60000,
+    "RECONNECT_ATTEMPTS": 3
+  },
+  "metrics": {
+    "totalConnections": 100,
+    "successfulConnections": 100,
+    "failedConnections": 0,
+    "averageConnectionTime": 0,
+    "minLatency": 0.17919999999867287,
+    "maxLatency": 4.525200000000041,
+    "totalLatency": 1306.9013000001123,
+    "connectionTimes": [
+      21.86239999999998,
+      15.891200000000026,
+      15.47970000000032,
+      15.393799999999828,
+      15.244700000000194,
+      15.08159999999998,
+      14.96429999999964,
+      14.721199999999953,
+      14.528399999999692,
+      14.339199999999892,
+      8.418700000000172,
+      8.254100000000108,
+      8.25500000000011,
+      8.90980000000036,
+      8.962199999999939,
+      9.422399999999925,
+      9.678300000000036,
+      16.51680000000033,
+      16.931299999999737,
+      17.296899999999823,
+      6.841099999999642,
+      7.930199999999786,
+      8.791799999999967,
+      9.072799999999916,
+      9.336199999999735,
+      9.917999999999665,
+      10.096799999999348,
+      10.080300000000534,
+      10.150400000000445,
+      10.265999999999622,
+      6.506199999999808,
+      6.699300000000221,
+      6.944300000000112,
+      7.187699999999495,
+      7.336599999999635,
+      7.569900000000416,
+      7.721800000000258,
+      7.9419000000007145,
+      8.225000000000364,
+      30.828700000000026,
+      6.119399999999587,
+      6.329099999999926,
+      6.671099999999569,
+      6.916000000000167,
+      7.2961999999997715,
+      7.796999999999571,
+      7.959200000000237,
+      8.451000000000022,
+      17.480399999999463,
+      18.227600000000166,
+      7.130100000000311,
+      7.177599999999984,
+      7.349799999999959,
+      7.501500000000306,
+      7.571100000000115,
+      7.6797999999998865,
+      7.751000000000204,
+      8.220500000000357,
+      8.522600000000239,
+      18.04659999999967,
+      4.978699999999662,
+      4.931500000000597,
+      5.301499999999578,
+      5.890900000000329,
+      6.0068000000010215,
+      6.485500000000684,
+      14.363400000000183,
+      14.60530000000108,
+      15.120699999999488,
+      15.393499999998312,
+      4.379399999999805,
+      6.165499999999156,
+      6.696600000001126,
+      6.962900000000445,
+      7.607399999998961,
+      8.000500000000102,
+      8.8083000000006,
+      9.274199999999837,
+      9.488299999999072,
+      9.734099999999671,
+      4.615899999998874,
+      6.454799999999523,
+      6.480500000001484,
+      6.598700000000463,
+      6.890500000001339,
+      6.977399999999761,
+      7.206599999999526,
+      7.498599999998987,
+      7.969900000000052,
+      22.528700000000754,
+      4.946200000000317,
+      4.936600000000908,
+      5.138100000000122,
+      5.898299999998926,
+      6.157400000000052,
+      6.53859999999986,
+      6.997699999999895,
+      7.4870000000009895,
+      7.913099999999758,
+      21.388600000000224
+    ],
+    "disconnections": 0,
+    "reconnections": 0,
+    "errors": []
+  },
+  "connections": [
+    {
+      "id": 1,
+      "connected": true,
+      "connectionTime": 21.86239999999998,
+      "latency": 1.5878000000084285,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 2,
+      "connected": true,
+      "connectionTime": 15.891200000000026,
+      "latency": 1.2981999999901745,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 3,
+      "connected": true,
+      "connectionTime": 15.47970000000032,
+      "latency": 1.2973000000056345,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 4,
+      "connected": true,
+      "connectionTime": 15.393799999999828,
+      "latency": 0.9663000000000466,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 5,
+      "connected": true,
+      "connectionTime": 15.244700000000194,
+      "latency": 0.9667000000044936,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 6,
+      "connected": true,
+      "connectionTime": 15.08159999999998,
+      "latency": 0.9324000000051456,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 7,
+      "connected": true,
+      "connectionTime": 14.96429999999964,
+      "latency": 1.2330999999976484,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 8,
+      "connected": true,
+      "connectionTime": 14.721199999999953,
+      "latency": 1.2432000000117114,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 9,
+      "connected": true,
+      "connectionTime": 14.528399999999692,
+      "latency": 1.2124000000039814,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 10,
+      "connected": true,
+      "connectionTime": 14.339199999999892,
+      "latency": 1.1863999999914085,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 11,
+      "connected": true,
+      "connectionTime": 8.418700000000172,
+      "latency": 1.2836999999999534,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 12,
+      "connected": true,
+      "connectionTime": 8.254100000000108,
+      "latency": 0.9315999999962514,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 13,
+      "connected": true,
+      "connectionTime": 8.25500000000011,
+      "latency": 2.1349000000045635,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 14,
+      "connected": true,
+      "connectionTime": 8.90980000000036,
+      "latency": 2.1251999999949476,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 15,
+      "connected": true,
+      "connectionTime": 8.962199999999939,
+      "latency": 2.466500000009546,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 16,
+      "connected": true,
+      "connectionTime": 9.422399999999925,
+      "latency": 2.1490999999950873,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 17,
+      "connected": true,
+      "connectionTime": 9.678300000000036,
+      "latency": 0.9477000000042608,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 18,
+      "connected": true,
+      "connectionTime": 16.51680000000033,
+      "latency": 0.7021999999997206,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 19,
+      "connected": true,
+      "connectionTime": 16.931299999999737,
+      "latency": 0.6468999999924563,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 20,
+      "connected": true,
+      "connectionTime": 17.296899999999823,
+      "latency": 0.8730000000068685,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 21,
+      "connected": true,
+      "connectionTime": 6.841099999999642,
+      "latency": 1.0877000000036787,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 22,
+      "connected": true,
+      "connectionTime": 7.930199999999786,
+      "latency": 0.8322000000043772,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 23,
+      "connected": true,
+      "connectionTime": 8.791799999999967,
+      "latency": 0.5384000000049127,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 24,
+      "connected": true,
+      "connectionTime": 9.072799999999916,
+      "latency": 0.4807999999902677,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 25,
+      "connected": true,
+      "connectionTime": 9.336199999999735,
+      "latency": 0.4664000000047963,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 26,
+      "connected": true,
+      "connectionTime": 9.917999999999665,
+      "latency": 0.5646999999880791,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 27,
+      "connected": true,
+      "connectionTime": 10.096799999999348,
+      "latency": 0.5752999999967869,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 28,
+      "connected": true,
+      "connectionTime": 10.080300000000534,
+      "latency": 0.5561999999918044,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 29,
+      "connected": true,
+      "connectionTime": 10.150400000000445,
+      "latency": 0.6036000000021886,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 30,
+      "connected": true,
+      "connectionTime": 10.265999999999622,
+      "latency": 0.6384000000107335,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 31,
+      "connected": true,
+      "connectionTime": 6.506199999999808,
+      "latency": 0.9176000000006752,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 32,
+      "connected": true,
+      "connectionTime": 6.699300000000221,
+      "latency": 0.777299999987008,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 33,
+      "connected": true,
+      "connectionTime": 6.944300000000112,
+      "latency": 0.809399999998277,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 34,
+      "connected": true,
+      "connectionTime": 7.187699999999495,
+      "latency": 1.0565999999962514,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 35,
+      "connected": true,
+      "connectionTime": 7.336599999999635,
+      "latency": 1.0597999999881722,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 36,
+      "connected": true,
+      "connectionTime": 7.569900000000416,
+      "latency": 1.041400000001886,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 37,
+      "connected": true,
+      "connectionTime": 7.721800000000258,
+      "latency": 1.015400000003865,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 38,
+      "connected": true,
+      "connectionTime": 7.9419000000007145,
+      "latency": 0.9928999999974621,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 39,
+      "connected": true,
+      "connectionTime": 8.225000000000364,
+      "latency": 1.0353999999933876,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 40,
+      "connected": true,
+      "connectionTime": 30.828700000000026,
+      "latency": 1.303699999989476,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 41,
+      "connected": true,
+      "connectionTime": 6.119399999999587,
+      "latency": 1.6240000000107102,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 42,
+      "connected": true,
+      "connectionTime": 6.329099999999926,
+      "latency": 1.2729999999864958,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 43,
+      "connected": true,
+      "connectionTime": 6.671099999999569,
+      "latency": 1.1345000000001164,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 44,
+      "connected": true,
+      "connectionTime": 6.916000000000167,
+      "latency": 1.0874000000039814,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 45,
+      "connected": true,
+      "connectionTime": 7.2961999999997715,
+      "latency": 0.8492000000114786,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 46,
+      "connected": true,
+      "connectionTime": 7.796999999999571,
+      "latency": 1.0570000000006985,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 47,
+      "connected": true,
+      "connectionTime": 7.959200000000237,
+      "latency": 1.0479000000050291,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 48,
+      "connected": true,
+      "connectionTime": 8.451000000000022,
+      "latency": 1.028600000005099,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 49,
+      "connected": true,
+      "connectionTime": 17.480399999999463,
+      "latency": 1.1380999999964843,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 50,
+      "connected": true,
+      "connectionTime": 18.227600000000166,
+      "latency": 1.7648999999946682,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 51,
+      "connected": true,
+      "connectionTime": 7.130100000000311,
+      "latency": 1.1116000000038184,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 52,
+      "connected": true,
+      "connectionTime": 7.177599999999984,
+      "latency": 1.8019999999960419,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 53,
+      "connected": true,
+      "connectionTime": 7.349799999999959,
+      "latency": 1.8496999999915715,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 54,
+      "connected": true,
+      "connectionTime": 7.501500000000306,
+      "latency": 1.8448999999964144,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 55,
+      "connected": true,
+      "connectionTime": 7.571100000000115,
+      "latency": 1.8456000000005588,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 56,
+      "connected": true,
+      "connectionTime": 7.6797999999998865,
+      "latency": 1.8360000000102445,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 57,
+      "connected": true,
+      "connectionTime": 7.751000000000204,
+      "latency": 1.8302000000112457,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 58,
+      "connected": true,
+      "connectionTime": 8.220500000000357,
+      "latency": 1.8246000000071945,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 59,
+      "connected": true,
+      "connectionTime": 8.522600000000239,
+      "latency": 1.8007000000070548,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 60,
+      "connected": true,
+      "connectionTime": 18.04659999999967,
+      "latency": 1.7799999999988358,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 61,
+      "connected": true,
+      "connectionTime": 4.978699999999662,
+      "latency": 0.4830000000074506,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 62,
+      "connected": true,
+      "connectionTime": 4.931500000000597,
+      "latency": 0.3518999999942025,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 63,
+      "connected": true,
+      "connectionTime": 5.301499999999578,
+      "latency": 0.35570000000006985,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 64,
+      "connected": true,
+      "connectionTime": 5.890900000000329,
+      "latency": 0.34329999999317806,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 65,
+      "connected": true,
+      "connectionTime": 6.0068000000010215,
+      "latency": 0.335399999996298,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 66,
+      "connected": true,
+      "connectionTime": 6.485500000000684,
+      "latency": 0.3271999999997206,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 67,
+      "connected": true,
+      "connectionTime": 14.363400000000183,
+      "latency": 0.34270000000833534,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 68,
+      "connected": true,
+      "connectionTime": 14.60530000000108,
+      "latency": 0.3565999999991618,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 69,
+      "connected": true,
+      "connectionTime": 15.120699999999488,
+      "latency": 0.37089999999443535,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 70,
+      "connected": true,
+      "connectionTime": 15.393499999998312,
+      "latency": 0.3839000000007218,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 71,
+      "connected": true,
+      "connectionTime": 4.379399999999805,
+      "latency": 1.330599999986589,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 72,
+      "connected": true,
+      "connectionTime": 6.165499999999156,
+      "latency": 1.4033000000054017,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 73,
+      "connected": true,
+      "connectionTime": 6.696600000001126,
+      "latency": 1.375499999994645,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 74,
+      "connected": true,
+      "connectionTime": 6.962900000000445,
+      "latency": 1.3625000000029104,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 75,
+      "connected": true,
+      "connectionTime": 7.607399999998961,
+      "latency": 1.3403000000107568,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 76,
+      "connected": true,
+      "connectionTime": 8.000500000000102,
+      "latency": 1.3659000000043306,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 77,
+      "connected": true,
+      "connectionTime": 8.8083000000006,
+      "latency": 1.6092999999964377,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 78,
+      "connected": true,
+      "connectionTime": 9.274199999999837,
+      "latency": 1.5685000000084983,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 79,
+      "connected": true,
+      "connectionTime": 9.488299999999072,
+      "latency": 1.5495999999984633,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 80,
+      "connected": true,
+      "connectionTime": 9.734099999999671,
+      "latency": 1.5204000000085216,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 81,
+      "connected": true,
+      "connectionTime": 6.454799999999523,
+      "latency": 1.3408000000054017,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 82,
+      "connected": true,
+      "connectionTime": 6.480500000001484,
+      "latency": 1.2798000000038883,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 83,
+      "connected": true,
+      "connectionTime": 6.598700000000463,
+      "latency": 1.2424000000028173,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 84,
+      "connected": true,
+      "connectionTime": 6.890500000001339,
+      "latency": 1.2059000000008382,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 85,
+      "connected": true,
+      "connectionTime": 6.977399999999761,
+      "latency": 1.1600000000034925,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 86,
+      "connected": true,
+      "connectionTime": 7.206599999999526,
+      "latency": 0.6355000000039581,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 87,
+      "connected": true,
+      "connectionTime": 7.498599999998987,
+      "latency": 0.46950000000651926,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 88,
+      "connected": true,
+      "connectionTime": 7.969900000000052,
+      "latency": 0.4367999999958556,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 89,
+      "connected": true,
+      "connectionTime": 22.528700000000754,
+      "latency": 0.3998000000137836,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 90,
+      "connected": true,
+      "connectionTime": 4.615899999998874,
+      "latency": 1.152700000006007,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 91,
+      "connected": true,
+      "connectionTime": 4.946200000000317,
+      "latency": 1.46830000000773,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 92,
+      "connected": true,
+      "connectionTime": 4.936600000000908,
+      "latency": 1.6381000000110362,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 93,
+      "connected": true,
+      "connectionTime": 5.138100000000122,
+      "latency": 1.6397999999899184,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 94,
+      "connected": true,
+      "connectionTime": 5.898299999998926,
+      "latency": 1.6089000000065425,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 95,
+      "connected": true,
+      "connectionTime": 6.157400000000052,
+      "latency": 1.7638000000006286,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 96,
+      "connected": true,
+      "connectionTime": 6.53859999999986,
+      "latency": 1.7771999999968102,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 97,
+      "connected": true,
+      "connectionTime": 6.997699999999895,
+      "latency": 1.7498999999952503,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 98,
+      "connected": true,
+      "connectionTime": 7.4870000000009895,
+      "latency": 1.7234000000025844,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 99,
+      "connected": true,
+      "connectionTime": 7.913099999999758,
+      "latency": 1.972299999993993,
+      "errors": 0,
+      "reconnectAttempts": 0
+    },
+    {
+      "id": 100,
+      "connected": true,
+      "connectionTime": 21.388600000000224,
+      "latency": 0.9622999999992317,
+      "errors": 0,
+      "reconnectAttempts": 0
+    }
+  ]
+}

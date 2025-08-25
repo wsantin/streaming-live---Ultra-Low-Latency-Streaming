@@ -1,0 +1,62 @@
+# ===========================================
+# Docker Streaming Services .gitignore
+# ===========================================
+
+# Stream files and recordings
+streams/*
+!streams/.gitkeep
+recordings/*
+!recordings/.gitkeep
+
+# HLS segments
+*.m3u8
+*.ts
+*.m4s
+
+# Media files
+*.mp4
+*.flv
+*.mkv
+*.avi
+*.webm
+*.mov
+
+# Log files
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# MediaMTX generated files
+mediamtx.log
+mediamtx.db
+
+# SSL certificates (auto-generated)
+ssl/
+certs/
+*.pem
+*.key
+*.crt
+
+# Docker volumes (data only)
+data/
+volumes/
+
+# Stats and metrics
+stats/
+metrics/
+
+# Backup files
+*.backup
+*.bak
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~

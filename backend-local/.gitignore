@@ -1,0 +1,101 @@
+# =====================================
+# WebRTC Backend - Node.js .gitignore
+# =====================================
+
+# Dependencies
+node_modules/
+*/node_modules/
+**/node_modules/
+jspm_packages/
+
+# Production build
+dist/
+build/
+lib/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Cache
+.npm
+.eslintcache
+.node_repl_history
+
+# Optional files
+*.tgz
+.yarn-integrity
+
+# WebRTC Backend Specific
+# ========================
+
+# FFmpeg binaries (if downloaded)
+bin/ffmpeg*
+bin/*.exe
+bin/*.dll
+bin/*.so
+bin/*.dylib
+
+# Stream recordings
+recordings/
+streams/
+*.mp4
+*.flv
+*.webm
+
+# Temporary processing files
+tmp/
+temp/
+processing/
+
+# WebRTC certificates
+certs/
+ssl/
+*.pem
+*.key
+*.crt
+
+# TURN server config
+turn-config.json
+stun-config.json
+
+# Database files (if using file-based DB)
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis dump
+dump.rdb
+
+# PM2 process files
+ecosystem.config.js
+.pm2/
+
+# Docker build context (if any)
+.dockerignore
+
+# Stats and metrics
+stats/
+metrics/
+analytics/

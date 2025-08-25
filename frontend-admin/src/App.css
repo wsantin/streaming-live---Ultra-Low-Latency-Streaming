@@ -1,0 +1,143 @@
+.App {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* New sections styling */
+.webrtc-section {
+  margin: 30px 0;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.webrtc-section h3 {
+  color: white;
+  margin: 0 0 8px 0;
+  font-size: 1.4rem;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.section-description {
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 20px 0;
+  font-size: 0.95rem;
+  font-style: italic;
+}
+
+.App-header {
+  padding: 2rem;
+  text-align: center;
+  color: white;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.App-header h1 {
+  margin: 0;
+  font-size: 2.5rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.App-main {
+  padding: 2rem;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.mode-selector {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.mode-selector h2 {
+  text-align: center;
+  margin: 0 0 20px 0;
+  color: #333;
+  font-size: 1.5em;
+}
+
+.mode-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.mode-btn:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.2);
+}
+
+.mode-btn.active {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  box-shadow: 0 6px 25px rgba(102, 126, 234, 0.3);
+}
+
+.mode-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.mode-icon {
+  font-size: 2em;
+  flex-shrink: 0;
+}
+
+.mode-info h3 {
+  margin: 0 0 4px 0;
+  font-size: 1.1em;
+}
+
+.mode-info p {
+  margin: 0;
+  opacity: 0.8;
+  font-size: 0.9em;
+}
+
+.stream-section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .mode-options {
+    grid-template-columns: 1fr;
+  }
+  
+  .mode-btn {
+    padding: 16px;
+  }
+  
+  .mode-icon {
+    font-size: 1.5em;
+  }
+}

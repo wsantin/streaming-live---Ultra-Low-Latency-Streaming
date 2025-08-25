@@ -1,0 +1,106 @@
+# ========================================
+# Frontend Viewer - React/Vite .gitignore
+# ========================================
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production builds
+/dist
+/build
+/.svelte-kit
+
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Vite specific
+.vite/
+dist-ssr
+*.local
+
+# Testing
+coverage/
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Temporary files
+tmp/
+temp/
+
+# WebRTC Viewer Frontend Specific
+# ================================
+
+# Stream screenshots
+screenshots/
+captures/
+*.jpg
+*.png
+*.gif
+*.webp
+
+# User downloads
+downloads/
+saved-streams/
+
+# WebRTC connection logs
+webrtc-viewer.log
+connection-stats.log
+latency-measurements.log
+
+# Media cache
+media-cache/
+stream-cache/
+
+# Viewer statistics
+viewer-stats/
+session-data/
+
+# Player state saves
+player-state/
+bookmarks/
+
+# Performance logs
+performance/
+bandwidth-logs/
+
+# Configuration overrides
+viewer-config.local.js
+viewer.override.js
+
+# Debug files
+debug/
+troubleshooting/
+
+# Backup files
+*.backup
+*.bak
+*.old

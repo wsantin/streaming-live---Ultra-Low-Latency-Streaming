@@ -303,7 +303,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Start server
-const PORT = process.env.PORT || SERVER_CONFIG.PORT;
+const PORT = 5001;
 
 const environment = process.env.NODE_ENV || 'development';
 const useDocker = process.env.USE_DOCKER === 'true';
@@ -325,8 +325,10 @@ if (useDocker) {
   console.log('💻 Using local development configuration');
 }
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`🎯 Health check: http://localhost:${PORT}/health`);
-  console.log(`⚡ WebRTC API: http://localhost:${PORT}/api/webrtc/stats`);
+  console.log(`🌐 Network access: http://192.168.1.33:${PORT}/health`);
+  console.log(`⚡ WebRTC API: http://192.168.1.33:${PORT}/api/webrtc/stats`);
+  console.log(`📱 Mobile access: http://192.168.1.33:${PORT}`);
 });

@@ -33,7 +33,7 @@ start-system.bat
 ### 3. Experience Ultra-Low Latency
 - **Streamer**: http://localhost:3000
 - **Viewer**: http://localhost:3001
-- **API**: http://localhost:5000
+- **API**: http://localhost:5001
 
 ---
 
@@ -50,7 +50,7 @@ start-system.bat
                 ┌──────────────────┐
                 │ Signaling Server │
                 │   (Socket.IO)    │
-                │   Port: 5000     │
+                │   Port: 5001     │
                 └──────────────────┘
 ```
 
@@ -109,7 +109,7 @@ server-streaming/
 ./verify-system.bat
 
 # Manual health check
-curl http://localhost:5000/health
+curl http://localhost:5001/health
 ```
 
 ## 🌍 **Production Deployment**

@@ -5,15 +5,15 @@
 const SERVER_CONFIG = {
   // Backend API Server - MediaMTX + SRS Architecture
   BACKEND: {
-    HOST: 'localhost',
-    PORT: 5000,
+    HOST: '192.168.1.33',
+    PORT: 5001,
     PROTOCOL: 'http'
   },
   
   // WebSocket Server (same as backend)
   WEBSOCKET: {
-    HOST: 'localhost',
-    PORT: 5000,
+    HOST: '192.168.1.33',
+    PORT: 5001,
     PROTOCOL: 'ws'
   },
   
@@ -35,7 +35,7 @@ export const API_ENDPOINTS = {
 export const UI_CONFIG = {
   TOAST_DURATION: 3000,
   LATENCY_UPDATE_INTERVAL: 2000,
-  RECONNECT_INTERVAL: 5000,
+  RECONNECT_INTERVAL: 5001,
   MAX_RECONNECT_ATTEMPTS: 5
 };
 

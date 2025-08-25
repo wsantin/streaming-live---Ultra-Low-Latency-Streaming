@@ -23,7 +23,7 @@ This is a **professional-grade WebRTC P2P streaming system** that achieves **200
                 ┌──────────────────┐
                 │ Signaling Server │
                 │   (Socket.IO)    │
-                │   Port: 5000     │
+                │   Port: 5001     │
                 └──────────────────┘
 ```
 
@@ -122,7 +122,7 @@ cd ../frontend-viewer && npm install
 ```bash
 cd backend-local
 npm run dev
-# Server runs on http://localhost:5000
+# Server runs on http://localhost:5001
 ```
 
 **Terminal 2 - Admin/Streamer:**
@@ -158,7 +158,7 @@ npm run dev
 #### Server Configuration (`backend-local/config/constants.js`):
 ```javascript
 const SERVER_CONFIG = {
-  PORT: process.env.PORT || 5000,
+  PORT: process.env.PORT || 5001,
   NODE_ENV: process.env.NODE_ENV || 'development'
 };
 ```
@@ -249,7 +249,7 @@ const rtcConfig = {
 #### Common Issues:
 
 **WebSocket Connection Failed:**
-- Check backend is running on port 5000
+- Check backend is running on port 5001
 - Verify firewall settings
 - Check CORS configuration
 

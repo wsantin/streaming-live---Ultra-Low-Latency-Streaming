@@ -7,12 +7,12 @@ echo 📦 Checking Docker containers (Optional)...
 docker ps --filter "name=mediamtx" --filter "name=streaming-redis" --format "table {{.Names}}\t{{.Status}}" 2>nul
 
 echo.
-echo 🔧 Verifying WebRTC Backend API (Port 5000)...
-curl -s http://localhost:5000/health | findstr "healthy" && echo "✅ Backend Health OK" || echo "❌ Backend not responding"
+echo 🔧 Verifying WebRTC Backend API (Port 5001)...
+curl -s http://localhost:5001/health | findstr "healthy" && echo "✅ Backend Health OK" || echo "❌ Backend not responding"
 
 echo.
 echo 📊 Checking WebRTC Stats API...
-curl -s http://localhost:5000/api/webrtc/stats | findstr "broadcasters" && echo "✅ WebRTC API OK" || echo "❌ WebRTC API not responding"
+curl -s http://localhost:5001/api/webrtc/stats | findstr "broadcasters" && echo "✅ WebRTC API OK" || echo "❌ WebRTC API not responding"
 
 echo.
 echo 🏃 Verifying services on ports...
@@ -22,8 +22,8 @@ netstat -an | findstr ":3000" > nul && echo "✅ Running" || echo "❌ Not activ
 echo Frontend Viewer (3001):
 netstat -an | findstr ":3001" > nul && echo "✅ Running" || echo "❌ Not active"
 
-echo WebRTC Backend (5000):
-netstat -an | findstr ":5000" > nul && echo "✅ Running" || echo "❌ Not active"
+echo WebRTC Backend (5001):
+netstat -an | findstr ":5001" > nul && echo "✅ Running" || echo "❌ Not active"
 
 echo.
 echo 📡 Testing MediaMTX (Optional)...
@@ -40,7 +40,7 @@ echo 🎯 SYSTEM SUMMARY:
 echo ==================
 echo 📱 Streamer Panel:      http://localhost:3000
 echo 📺 Viewer Panel:        http://localhost:3001
-echo 🔧 Backend API:         http://localhost:5000
+echo 🔧 Backend API:         http://localhost:5001
 echo.
 echo ⚡ WEBRTC FEATURES:
 echo ==================

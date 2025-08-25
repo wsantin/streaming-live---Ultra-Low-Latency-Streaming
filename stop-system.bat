@@ -20,9 +20,18 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3000') do taskkill /f /pid %
 echo   📺 Deteniendo Frontend Viewer (Puerto 3001)...  
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3001') do taskkill /f /pid %%a 2>nul
 
-echo   🔧 Deteniendo Backend WebRTC (Puerto 5000)...
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5000') do taskkill /f /pid %%a 2>nul
+echo   🔧 Deteniendo Backend WebRTC (Puerto 5001)...
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5001') do taskkill /f /pid %%a 2>nul
 
+echo   🔧 Deteniendo Backend WebRTC (Puerto 5001-5010)...
+for /L %%p in (5001,1,5010) do (
+  for /f "tokens=5" %%a in ('netstat -aon ^| findstr :%%p') do taskkill /f /pid %%a 2>nul
+)
+
+echo   🔧 Deteniendo Backend WebRTC (Puerto 3000-3010)...
+for /L %%p in (3000,1,3010) do (
+  for /f "tokens=5" %%a in ('netstat -aon ^| findstr :%%p') do taskkill /f /pid %%a 2>nul
+)
 
 
 echo.
@@ -42,7 +51,7 @@ echo 🛑 SERVICIOS DETENIDOS:
 echo =======================
 echo   📱 Frontend Admin:       Puerto 3000
 echo   📺 Frontend Viewer:      Puerto 3001  
-echo   🔧 Backend WebRTC:       Puerto 5000
+echo   🔧 Backend WebRTC:       Puerto 5001
 echo   📦 Docker MediaMTX:      Puertos 8004, 1937, 8890
 echo   📦 Docker Redis:         Puerto 6379
 echo.

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import io from 'socket.io-client';
+import { API_URL } from '../config/constants';
 
 const WebRTCViewer = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -42,10 +43,10 @@ const WebRTCViewer = () => {
 
   const connectToSignalingServer = () => {
     try {
-      socketRef.current = io('http://localhost:5000', {
+      socketRef.current = io(API_URL, {
         transports: ['websocket'],
         upgrade: true,
-        timeout: 5000
+        timeout: 5001
       });
 
       socketRef.current.on('connect', () => {

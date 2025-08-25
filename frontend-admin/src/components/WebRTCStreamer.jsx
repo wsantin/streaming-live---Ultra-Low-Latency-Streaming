@@ -24,7 +24,7 @@ const WebRTCStreamer = () => {
 
   useEffect(() => {
     // Connect to signaling server
-    socketRef.current = io('http://localhost:5000', {
+    socketRef.current = io('http://localhost:5001', {
       transports: ['websocket']
     });
 

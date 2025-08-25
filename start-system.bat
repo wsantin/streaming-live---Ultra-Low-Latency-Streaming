@@ -16,7 +16,7 @@ echo 🔍 Checking Docker services...
 docker ps --filter "name=mediamtx" --filter "name=streaming-redis"
 
 echo.
-echo 🖥️ Starting WebRTC Backend (Port 5000)...
+echo 🖥️ Starting WebRTC Backend (Port 5001)...
 cd ..\backend-local
 start cmd /k "npm run dev"
 
@@ -41,7 +41,7 @@ echo 🚀 ULTRA-LOW LATENCY WEBRTC P2P:
 echo =====================================
 echo 📱 Streamer Panel:      http://localhost:3000
 echo 📺 Viewer Panel:        http://localhost:3001  
-echo 🔧 Backend API:         http://localhost:5000
+echo 🔧 Backend API:         http://localhost:5001
 echo.
 echo ⚡ WEBRTC FEATURES:
 echo ===================
@@ -53,8 +53,8 @@ echo ✓ STUN/ICE NAT traversal
 echo.
 echo 📊 API ENDPOINTS:
 echo =================
-echo Health Check:     http://localhost:5000/health
-echo WebRTC Stats:     http://localhost:5000/api/webrtc/stats
+echo Health Check:     http://localhost:5001/health
+echo WebRTC Stats:     http://localhost:5001/api/webrtc/stats
 echo.
 echo 🎯 TO START STREAMING:
 echo ======================

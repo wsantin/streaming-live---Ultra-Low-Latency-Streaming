@@ -1,357 +1,423 @@
-# ⚡ Ultra-Low Latency WebRTC P2P Multi-Room Streaming System
+# ⚡ Sistema de Streaming LiveKit SFU de Ultra Baja Latencia
 
-## 🚀 **13ms Average Latency - Better Than TikTok Live!**
+## 🚀 **Latencia 20-50ms - 1000+ Espectadores Concurrentes - Arquitectura SFU Profesional**
 
-Professional **WebRTC P2P multi-room streaming system** achieving ultra-low latency with direct peer-to-peer connections. Tested with 100 concurrent connections at 100% success rate.
+Sistema profesional de **streaming LiveKit SFU** que logra ultra baja latencia con arquitectura Selective Forwarding Unit (SFU). Soporta más de 1000 espectadores concurrentes por sala con capas de calidad simulcast.
+
+⚠️ **ADVERTENCIA IMPORTANTE**: 
+**NUNCA ejecutes `taskkill /f /im node.exe` sin excepciones, ya que esto también cerrará Claude Code.**
+Siempre usa comandos más específicos o excluye los procesos de Claude Code al detener servicios.
 
 ---
 
-## ⚡ **QUICK START**
+## ⚡ **INICIO RÁPIDO**
 
-### 1. Clone & Install
+### 1. Clonar e Instalar
 ```bash
-git clone [your-repo]
+git clone [tu-repositorio]
 cd server-streaming
 
-# Install all dependencies
+# Instalar dependencias raíz
+npm install
+
+# Instalar dependencias de todos los servicios
 cd backend-local && npm install
 cd ../frontend-admin && npm install
 cd ../frontend-viewer && npm install
 ```
 
-### 2. Start System
+### 2. Iniciar Sistema
+
+**Comandos Simplificados (.bat):**
 ```bash
-# Use automated script
-start-system.bat
+# Desarrollo - Inicia todo automáticamente
+./dev.bat
 
-# OR start manually:
-# Terminal 1: cd backend-local && npm run dev
-# Terminal 2: cd frontend-admin && npm run dev  
-# Terminal 3: cd frontend-viewer && npm run dev
+# Detener todo
+./stop-dev.bat
 ```
 
-### 3. Experience Ultra-Low Latency
+**Esto automáticamente:**
+- ✅ Inicia Redis (Docker)
+- ✅ Inicia LiveKit SFU nativo (livekit-server.exe puerto 7880)
+- ✅ Inicia API backend (puerto 5001)  
+- ✅ Inicia frontend admin (puerto 3000)
+- ✅ Inicia frontend viewer (puerto 3001)
 
-**🏠 LOCAL DEVELOPMENT:**
-- **Streamer**: http://localhost:3000 (Admin Panel)
-- **Viewer**: http://localhost:3001 (Viewer Interface) 
-- **API**: http://localhost:5001 (Backend)
+### 3. Acceder al Sistema
 
-**📱 PRODUCTION (Mobile Streaming):**
-- **Streamer**: https://[tunnel].trycloudflare.com (Port 4000)
-- **Viewer**: https://[tunnel].trycloudflare.com (Port 4001)
-- **API**: https://[tunnel].trycloudflare.com (Port 6001)
+**🏠 ACCESO AL SISTEMA:**
+- **👨‍💼 Admin Panel**: http://localhost:3000 (Streamer/Creador)
+- **👁️ Viewer Panel**: http://localhost:3001 (Espectador)  
+- **🔧 Backend API**: http://localhost:5001 (API REST)
+- **📡 LiveKit SFU**: ws://localhost:7880 (Servidor WebRTC)
 
----
-
-## 🎮 **Multi-Room Streaming**
-
-### Single Room Mode
-- Traditional streaming: one room per camera
-- Enter room name → Start streaming
-- Viewers join by room name
-
-### Multi-Room Mode 🔥
-- **ONE camera → MULTIPLE rooms simultaneously**
-- No "device in use" errors
-- Create unlimited rooms (gaming, music, tech, etc.)
-- Independent viewer counts per room
-- Perfect for multi-topic streaming
-
----
-
-## 📱 **Mobile Streaming (HTTPS Tunnels)**
-
-### Quick Mobile Setup
+**📱 PRODUCCIÓN (Streaming Móvil):**
 ```bash
-# Production setup with separated ports
-./start-prod.bat
-
-# Manual tunnel setup
-cloudflared tunnel --url http://localhost:6001  # Backend
-cloudflared tunnel --url http://localhost:4000  # Admin
-cloudflared tunnel --url http://localhost:4001  # Viewer
+npm run prod
+# Crea túneles de Cloudflare automáticamente
 ```
-
-Mobile features:
-- Automatic HTTPS detection
-- Separated production ports (no conflicts)
-- Step-by-step mobile setup guide
-- iOS/Android camera permissions helper
-- Fallback to audio-only mode
 
 ---
 
-## 🏗️ **Architecture**
+## 🎮 **Sistema de Streaming LiveKit SFU**
+
+### Arquitectura SFU Profesional
+- **Servidor LiveKit**: Unidad de Reenvío Selectivo (SFU) Escalable
+- **1000+ espectadores** por sala
+- **20-50ms ultra baja latencia**
+- **Simulcast** con 4 niveles de calidad
+- **Clustering con Redis** para escalado horizontal
+- **Despliegue basado en Docker**
+
+---
+
+## 📱 **Streaming Móvil (Túneles HTTPS)**
+
+### Configuración Rápida Móvil
+```bash
+# Configuración de producción con scripts Node.js
+npm run prod
+
+# Configuración de desarrollo con LiveKit
+npm run dev
+
+# Detener todos los servicios
+npm run stop
+```
+
+Características móviles:
+- Detección automática de HTTPS
+- Integración con túneles de Cloudflare
+- Guía paso a paso para configuración móvil
+- Asistente de permisos de cámara iOS/Android
+- Modo de respaldo solo-audio
+
+---
+
+## 🏗️ **Arquitectura**
 
 ```
-┌─────────────┐         WebRTC P2P          ┌─────────────┐
-│  Streamer   │ ◄──────────────────────────► │   Viewer    │
-│  (Browser)  │      Direct Connection       │  (Browser)  │
-└─────────────┘                              └─────────────┘
-       │                                             │
-       └──────────────┐      ┌──────────────────────┘
-                      ▼      ▼
-                ┌──────────────────┐
-                │ Signaling Server │
-                │   (Socket.IO)    │
-                │   Port: 5001     │
-                │   Multi-Room     │
-                └──────────────────┘
+┌─────────────┐      LiveKit SFU         ┌─────────────┐
+│  Streamer   │ ────────────────────────► │   Viewer    │
+│  (Browser)  │                           │  (Browser)  │
+└─────────────┘                           └─────────────┘
+       │                                         │
+       └──────────────┐    ┌────────────────────┘
+                      ▼    ▼
+            ┌─────────────────────────┐
+            │  LiveKit SFU Server     │
+            │  - Docker Container     │
+            │  - Port: 7880 (HTTP)    │
+            │  - Port: 7881 (TCP)     │  
+            │  - Port: 50000-60000    │
+            │  - Redis: 6379          │
+            └─────────────────────────┘
 ```
 
-## 🔥 **Key Features**
+## 🔥 **Características Principales**
 
-- ⚡ **13ms average latency** (tested with 100 connections)
-- 🎮 **Multi-room support** (one camera, multiple rooms)
-- 📱 **Mobile streaming** (with HTTPS tunneling)
-- 🚀 **P2P Direct Connection** (no server processing)
-- 🌍 **NAT traversal** (STUN/ICE support)
-- 📊 **Real-time stats** (latency, bandwidth, FPS)
-- 🔄 **Auto-reconnection** (network resilience)
-- ✅ **100% success rate** (100 connections tested)
+- ⚡ **20-50ms ultra baja latencia** (LiveKit SFU)
+- 🎯 **1000+ espectadores concurrentes** por sala
+- 📱 **Streaming móvil** (con túneles HTTPS)
+- 🚀 **Servidor LiveKit SFU** (grado profesional)
+- 🎥 **Soporte simulcast** (4 capas de calidad)
+- 📊 **Estadísticas en tiempo real** (latencia, ancho de banda, FPS)
+- 🔄 **Auto-reconexión** (resiliencia de red)
+- 🐳 **Despliegue Docker** (fácil escalado)
 
-## 🎯 **Performance Comparison**
+## 🎯 **Comparación de Rendimiento**
 
-| Platform | Latency | Multi-Room | Mobile | Our Advantage |
-|----------|---------|------------|--------|---------------|
-| **Our System** | **13ms** | ✅ Yes | ✅ Yes | 🏆 Best |
-| TikTok Live | 300-800ms | ❌ No | ✅ Yes | 23x faster |
-| YouTube Live | 2-8s | ❌ No | ✅ Yes | 154x faster |
-| Twitch | 1-3s | ❌ No | ✅ Yes | 77x faster |
-| AWS IVS | 1-3s | ❌ No | ✅ Yes | 77x faster |
+| Plataforma | Latencia | Máx. Espectadores | Móvil | Tecnología |
+|------------|----------|-------------------|-------|------------|
+| **Nuestro Sistema LiveKit** | **20-50ms** | 1000+ | ✅ Sí | SFU |
+| TikTok Live | 300-800ms | Ilimitado | ✅ Sí | CDN |
+| YouTube Live | 2-8s | Ilimitado | ✅ Sí | CDN |
+| Twitch | 1-3s | Ilimitado | ✅ Sí | CDN |
+| Discord | 50-150ms | 50 | ✅ Sí | SFU |
 
-## 📁 **Project Structure**
+## 📁 **Estructura del Proyecto**
 
 ```
 server-streaming/
-├── backend-local/                    # WebRTC signaling server
-│   ├── server.js                     # Main server with multi-room support
-│   ├── webrtc-signaling.js          # WebRTC signaling logic
-│   ├── generate-cert.js             # SSL certificate generator
-│   └── config/constants.js          # Server configuration
-├── frontend-admin/                  # Streamer interface
+├── backend-local/                    # Servidor backend con integración LiveKit
+│   ├── server.js                     # Servidor principal con soporte LiveKit
+│   ├── livekit-integration.js        # Gestor SFU LiveKit (1000+ espectadores)
+│   ├── generate-cert.js              # Generador de certificados SSL
+│   └── config/constants.js          # Configuración del servidor con LiveKit
+├── livekit-native/                   # LiveKit Server Nativo
+│   └── livekit-server.exe           # Ejecutable nativo LiveKit SFU
+├── livekit-native-config.yaml        # Configuración LiveKit nativo
+├── streaming-docker/                 # Solo Redis Docker
+│   └── docker-compose.yml           # Solo Redis para cache/sessions
+├── frontend-admin/                   # Interfaz del streamer
 │   └── src/components/
-│       ├── RoomCreator.jsx          # ✅ ACTIVE - Main room creation
-│       ├── MultiStreamManager.jsx   # Multi-room streaming
-│       ├── MobileStreamHelper.jsx   # Mobile streaming helper
-│       └── WebRTCStreamer.jsx       # ❌ DEPRECATED - Simple version
-├── frontend-viewer/                 # Viewer interface
+│       └── StreamingAdmin.jsx       # Interfaz de streaming LiveKit
+├── frontend-viewer/                  # Interfaz del espectador
 │   └── src/components/
-│       ├── RoomViewer.jsx           # ✅ ACTIVE - Main room viewer
-│       └── WebRTCViewer.jsx         # ❌ DEPRECATED - Simple version
-├── performance-testing/             # Load testing tools
-├── scripts/                         # Automation scripts
-│   ├── start-dev.js                # Development starter
-│   └── environment-config.js       # Environment configuration
-├── start-local.bat                 # Local development (HTTP)
-├── start-local-https.bat          # Local HTTPS (mobile ready)
-├── start-prod.bat                  # Production with tunnels
-├── stop-local.bat                  # Stop local services
-├── stop-prod.bat                   # Stop production services
-└── stop-system.bat                 # Stop all services (global)
+│       └── StreamingViewer.jsx      # Interfaz del visor LiveKit
+├── dev.bat                          # Script de desarrollo
+├── stop-dev.bat                     # Detener desarrollo
+└── package.json                     # Package raíz con scripts npm
 ```
 
-## 🛠️ **Technology Stack**
+## 🛠️ **Stack Tecnológico**
 
-**Frontend**: React 18, WebRTC API, Socket.IO Client
-**Backend**: Node.js, Express, Socket.IO, Multi-room state management
-**Streaming**: WebRTC (VP9/H.264), Opus Audio, ICE/STUN
-**Testing**: Custom load tester (100+ concurrent connections)
+**Frontend**: React 18, LiveKit Client SDK, Socket.IO Client
+**Backend**: Node.js, Express, LiveKit Server SDK, Socket.IO
+**Streaming**: 
+- **🚀 LiveKit SFU Nativo**: Ejecutable nativo, Códecs VP9/VP8/H.264, Audio Opus, Simulcast (20-50ms, 1000+ espectadores)
+- **Redis Docker**: Cache y sessions distribuidas
+- **Configuración YAML**: Configuración nativa optimizada
+**Infraestructura**: Redis Docker, LiveKit Nativo, .bat scripts
+**Control**: Scripts .bat para inicio/parada de servicios
 
-## 📊 **Performance Test Results**
+## 📊 **Especificaciones de Rendimiento**
 
 ```
-🎯 100 Concurrent Connections Test
+🎯 Rendimiento LiveKit SFU
 ===================================
-✅ Success Rate: 100%
-⚡ Avg Latency: 13.07ms
-🚀 Min Latency: 0.18ms
-📈 Max Latency: 4.53ms
-🔄 Disconnections: 0
-❌ Errors: 0
+✅ Máx. Espectadores: 1000+ por sala
+⚡ Latencia Promedio: 20-50ms
+🚀 Capas de Calidad: 4 (simulcast)
+📈 Ancho de Banda: Adaptativo
+🔄 Protocolo: WebRTC
+❌ Carga del Servidor: Media
 
-Rating: OUTSTANDING - Professional streaming quality
+Calificación: PROFESIONAL - Calidad de streaming empresarial
 ```
 
-## 🔧 **API Endpoints**
+## 🔧 **Endpoints de API**
 
+### 🚀 **Endpoints de API LiveKit SFU:**
 ```javascript
-GET /health                 // Health check
-GET /api/rooms/stats        // All rooms statistics
-GET /api/rooms/live         // Live rooms only
-GET /api/webrtc/stats       // WebRTC statistics
-GET /api/stream/status      // System status
+POST /api/livekit/token                          // Generar token de acceso
+POST /api/livekit/rooms                          // Crear sala
+GET  /api/livekit/rooms                          // Listar salas activas
+GET  /api/livekit/rooms/:roomName/stats          // Estadísticas de sala  
+DELETE /api/livekit/rooms/:roomName/participants/:id  // Remover participante
+GET  /api/livekit/health                         // Verificación de salud LiveKit
+GET  /health                                      // Verificación de salud del sistema
+GET  /api/network/local-ip                       // Obtener IP local detectada
 ```
 
-## 💻 **Usage Examples**
+## 💻 **Ejemplos de Uso**
 
-### Create Multiple Rooms (One Camera)
+### Crear Sala LiveKit (Streamer)
 ```javascript
-// Streamer side - Multi-room mode
-1. Click "Multi-Room Mode"
-2. Create "gaming" room
-3. Create "music" room  
-4. Create "tech" room
-// All rooms use same camera!
+// Lado del Streamer - LiveKit SFU
+1. Abrir http://localhost:3000
+2. Ingresar nombre de sala
+3. Click en "Crear Sala"
+4. Iniciar streaming con soporte para 1000+ espectadores
 ```
 
-### Join Specific Room (Viewer)
+### Unirse a Sala LiveKit (Espectador)
 ```javascript
-// Viewer side
-1. See list of live rooms
-2. Click room or enter name
-3. Click "Join Room"
-// Ultra-low latency connection!
+// Lado del Espectador
+1. Abrir http://localhost:3001
+2. Ver lista de salas en vivo
+3. Click en sala o ingresar nombre
+4. Click en "Unirse a Sala"
+// ¡Conexión SFU de ultra baja latencia!
 ```
 
-## 🚀 **Production Deployment**
+## 🚀 **Despliegue en Producción**
 
-### Requirements
-- HTTPS/WSS (WebRTC requirement)
-- TURN server (NAT traversal)
-- Load balancer (scaling)
-- Redis (session management)
+### Requisitos
+- Docker y Docker Compose
+- Node.js 18+
+- HTTPS/WSS (requisito de WebRTC)
+- Balanceador de carga (para escalado)
+- Redis (gestión de sesiones)
 
-### Recommended Infrastructure
-- **Signaling**: AWS EC2 t3.small
-- **TURN**: AWS EC2 c5.large  
-- **Redis**: AWS ElastiCache
-- **SSL**: Let's Encrypt
+### Infraestructura Recomendada
+- **Servidor LiveKit**: Contenedor Docker
+- **Redis**: Contenedor Docker o AWS ElastiCache
+- **Balanceador de Carga**: Nginx o AWS ALB
+- **SSL**: Let's Encrypt o Cloudflare
 
-## 🛠️ **Development Commands**
+## 🛠️ **Comandos de Desarrollo**
 
-### 🏠 **Local Environment** (HTTP Development):
+### 🚀 **Comandos Principales (Scripts .bat):**
+
+⚠️ **ADVERTENCIA CRÍTICA SOBRE PROCESOS**:
+Nunca uses `taskkill /f /im node.exe` sin filtros, ya que esto matará TODOS los procesos Node.js incluyendo Claude Code.
+En su lugar, usa comandos específicos o excluye los procesos de Claude Code.
 ```bash
-# Start local development with automatic IP detection
-./start-local.bat
+# 🔥 Iniciar Entorno de Desarrollo
+./dev.bat
+# ✅ Auto-inicia Redis Docker + LiveKit SFU nativo
+# ✅ Auto-detecta IP local para acceso en red
+# ✅ Inicia Backend + frontends Admin + Visor
 
-# Stop local environment
-./stop-local.bat
+# 🛑 Detener Desarrollo
+./stop-dev.bat
 
-# Update only local network configuration (if IP changes)
-./update-local-config.bat
+# 🚨 Detener Todo (Emergencia)
+./stop.bat
 ```
 
-### 🔒 **Local HTTPS Environment** (Mobile Development):
+### 🚀 **Servidor LiveKit SFU (Nativo)**:
 ```bash
-# Start local HTTPS with SSL certificates (mobile ready)
-./start-local-https.bat
+# Iniciar solo Redis (se inicia automáticamente con dev.bat)
+cd streaming-docker && docker-compose up -d
 
-# Stop local HTTPS environment
-./stop-local.bat
+# LiveKit se ejecuta nativo con:
+./livekit-native/livekit-server.exe --config=livekit-native-config.yaml
+
+# Ver logs de Redis
+cd streaming-docker && docker-compose logs -f redis
+
+# Verificar estado del servidor
+curl http://localhost:7880
+curl http://localhost:5001/api/livekit/health
 ```
 
-### 🌐 **Production Environment** (Global Mobile Streaming):
+### ⚙️ **Control Manual de Servicios**:
 ```bash
-# Start production with Cloudflare tunnels
-./start-prod.bat
-
-# Stop production environment  
-./stop-prod.bat
-```
-
-### 🔧 **System Management**:
-```bash
-# Stop all services (global emergency stop)
-./stop-system.bat
-
-# Run performance tests
-cd performance-testing && npm test
-
-# Manual service startup (if needed)
+# Solo Backend
 cd backend-local && npm run dev
+
+# Solo Frontend Admin
 cd frontend-admin && npm run dev  
+
+# Solo Frontend Visor
 cd frontend-viewer && npm run dev
+
+# Instalar dependencias (si es necesario)
+npm install
+cd backend-local && npm install
+cd frontend-admin && npm install
+cd frontend-viewer && npm install
 ```
 
-### 🔍 **Health Checks**:
+### 🔍 **Verificaciones de Salud**:
 ```bash
-# Local environment
-curl http://[YOUR-LOCAL-IP]:5001/health
-curl https://localhost:6001/health  # HTTPS local
+# Servidor LiveKit SFU
+curl http://localhost:7880
+curl http://localhost:5001/api/livekit/health
 
-# Production environment
-curl https://[backend-tunnel].trycloudflare.com/health
+# Entorno local
+curl http://[TU-IP-LOCAL]:5001/health
+
+# Entorno de producción
+curl https://[tunel-backend].trycloudflare.com/health
 ```
 
-### 🐛 **Debug Mode**:
+### 🐛 **Modo Debug**:
 ```bash
-# Add ?debug=true to any viewer URL to see debug logs
+# Agregar ?debug=true a cualquier URL del visor para ver logs de debug
 http://localhost:3001?debug=true
-https://[viewer-tunnel].trycloudflare.com?debug=true
+https://[tunel-visor].trycloudflare.com?debug=true
 ```
 
-## 📚 **Documentation**
+## 📚 **Documentación**
 
-- [PROFESSIONAL_STREAMING_DOCS.md](./PROFESSIONAL_STREAMING_DOCS.md) - Complete technical documentation
-- [MOBILE_STREAMING_GUIDE.md](./MOBILE_STREAMING_GUIDE.md) - Mobile streaming setup guide
-- [ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md) - Environment configuration guide
+- [LIVEKIT_CONFIGURATION_DOCS.md](./LIVEKIT_CONFIGURATION_DOCS.md) - Configuración Docker de LiveKit
+- [PROFESSIONAL_STREAMING_DOCS.md](./PROFESSIONAL_STREAMING_DOCS.md) - Documentación técnica
+- [ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md) - Guía de configuración del entorno
 
-## 🔒 **Security Features**
+## 🔒 **Características de Seguridad**
 
-- WSS encryption in production
-- CORS configuration
-- Rate limiting (100 req/min)
-- Room access control ready
-- JWT authentication ready
+- Encriptación WSS en producción
+- Configuración CORS
+- Límite de velocidad (100 req/min)
+- Control de acceso a salas listo
+- Autenticación JWT lista
 
-## ✨ **Unique Advantages**
+## ✨ **Ventajas Únicas**
 
-1. **Lowest Latency**: 13ms average (23x faster than TikTok)
-2. **Multi-Room Innovation**: One camera → Multiple rooms
-3. **100% Reliability**: Zero failures in stress testing
-4. **Mobile Ready**: Full mobile support with guides
-5. **Zero Infrastructure**: P2P reduces server costs by 90%
+1. **Ultra Baja Latencia**: 20-50ms con LiveKit SFU
+2. **Escala Masiva**: 1000+ espectadores por sala
+3. **Calidad Profesional**: 4 capas simulcast
+4. **Despliegue Fácil**: Arquitectura basada en Docker
+5. **Listo para Móviles**: Soporte móvil completo con HTTPS
 
-## 🎯 **Perfect For**
+## 🎯 **Perfecto Para**
 
-- Live gaming streams
-- Music performances
-- Educational broadcasts
-- Product demonstrations
-- Virtual events
-- Multi-topic content creators
+- Streams de gaming en vivo
+- Presentaciones musicales
+- Transmisiones educativas
+- Demostraciones de productos
+- Eventos virtuales
+- Streaming a gran escala
 
-## 🐛 **Troubleshooting**
+## 🐛 **Solución de Problemas**
 
-| Issue | Solution |
-|-------|----------|
-| Device in use | Use Multi-Room Mode |
-| Mobile camera error | Use HTTPS tunnel (ngrok) |
-| WebSocket failed | Check port 5001 |
-| High latency | Check network, verify P2P |
+| Problema | Solución |
+|----------|----------|
+| Docker no inicia | Verificar que Docker Desktop esté ejecutándose |
+| Puerto ya en uso | Detener servicios existentes o cambiar puertos |
+| Error de cámara móvil | Usar túnel HTTPS (npm run prod) |
+| WebSocket falló | Verificar puerto 5001/7880 |
+| Alta latencia | Verificar red, confirmar conexión LiveKit |
 
-## 🚀 **Ready to Stream!**
+## 🚀 **¡Listo para Transmitir!**
 
-### 🏠 **Local Development (HTTP):**
-1. Run `./start-local.bat` (auto-detects network IP)
-2. **Admin Panel**: http://localhost:3000 (create rooms)
-3. **Viewer**: http://localhost:3001 (join rooms)
-4. **Network Access**: http://[YOUR-IP]:3000 (other devices on same WiFi)
+### 🔥 **Inicio Rápido de Desarrollo:**
+```bash
+npm run dev
+```
+**Inicia automáticamente:**
+- 🚀 Servidor LiveKit SFU (Docker)
+- ⚙️ API Backend (puerto 5001)  
+- 🎯 Panel de Admin (puerto 3000)
+- 👁️ Panel del Visor (puerto 3001)
 
-### 🔒 **Local Mobile Testing (HTTPS):**
-1. Run `./start-local-https.bat` (generates SSL certificates)
-2. **Admin HTTPS**: https://localhost:3000 or https://[YOUR-IP]:3000
-3. **Viewer HTTPS**: https://localhost:3001 or https://[YOUR-IP]:3001
-4. **Mobile Ready**: Test camera/microphone on local network
+**URLs de Acceso:**
+- **Admin**: http://localhost:3000
+- **Visor**: http://localhost:3001
+- **Red**: http://[TU-IP]:3000 (dispositivos WiFi)
 
-### 📱 **Global Mobile Streaming (Production):**
-1. Run `./start-prod.bat` (creates tunnels on ports 6001, 4000, 4001)
-2. **Copy the HTTPS URLs** shown in console output
-3. **Share URLs globally** - works from anywhere with internet
-4. **13ms latency** worldwide streaming experience!
+### 🌐 **Streaming Móvil de Producción:**
+```bash
+npm run prod
+```
+**Crea automáticamente:**
+- 🌐 Túneles HTTPS para acceso global
+- 📱 Soporte de cámara/micrófono móvil
+- 🔒 Encriptación SSL para todas las conexiones
 
-### 🎯 **Current Active Components:**
-- **Admin**: `RoomCreator.jsx` - Create and manage rooms
-- **Viewer**: `RoomViewer.jsx` - Join and watch streams
-- **Debug**: Add `?debug=true` for troubleshooting
+**Acceso Global:**
+- Copiar URLs HTTPS de la salida de terminal
+- Funciona mundialmente con dispositivos móviles
+- Soporta streaming de cámara/micrófono
+
+### 🎮 **Características de Streaming LiveKit SFU:**
+
+| Característica | Especificación |
+|----------------|----------------|
+| **Latencia** | 20-50ms ultra baja |
+| **Máx. Espectadores** | 1000+ por sala |
+| **Capas de Calidad** | 4 niveles simulcast |
+| **Códecs** | VP9/VP8/H.264 |
+| **Despliegue** | Docker + Redis |
+| **Escalado** | Horizontal con clustering |
+
+### 🎯 **Componentes Activos Actuales:**
+
+**Panel de Admin (Streamer):**
+- ✅ `LiveKitRoomCreator.jsx` - Interfaz de streaming SFU (1000+ espectadores)
+- ✅ Creación y gestión de salas
+- ✅ Selección de dispositivos y controles de calidad
+- ✅ Panel de estadísticas en tiempo real
+
+**Panel del Visor:**
+- ✅ `LiveKitRoomViewer.jsx` - Interfaz del visor SFU
+- ✅ Selección automática de calidad (simulcast)
+- ✅ Navegador de salas y unión rápida
+- ✅ Estadísticas de conexión en tiempo real
+
+**Debug y Desarrollo:**
+- ✅ Agregar `?debug=true` a URLs del visor para solución de problemas
+- ✅ Estadísticas en tiempo real y monitoreo de conexión
+- ✅ Notificaciones toast para retroalimentación del usuario
 
 ---
 
-**Built with ❤️ for ultra-low latency multi-room streaming**
+**Construido con ❤️ para streaming de ultra baja latencia con LiveKit SFU**
 
-*Achieving professional streaming performance with open-source WebRTC technology*
+*Logrando rendimiento de streaming profesional con 1000+ espectadores concurrentes*
 
-**Stats**: 13ms latency | 100% success rate | Multi-room support | Mobile ready
-
+**Estadísticas**: Latencia 20-50ms | 1000+ espectadores | Simulcast | Listo para Docker

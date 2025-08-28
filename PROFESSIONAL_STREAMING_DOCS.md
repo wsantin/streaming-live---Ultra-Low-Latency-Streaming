@@ -133,7 +133,7 @@ server-streaming/
 │   │   ├── MultiStreamManager.jsx        # Multi-room streaming manager
 │   │   ├── MobileStreamHelper.jsx        # Mobile streaming helper
 │   │   └── WebRTCStreamer.jsx           # ❌ DEPRECATED - Simple version
-│   ├── .env.local                        # Local environment config
+│   ├── .env.development                        # Local environment config
 │   ├── .env.production                   # Production environment config
 │   └── vite.config.js                    # Vite configuration
 │
@@ -141,7 +141,7 @@ server-streaming/
 │   ├── src/components/
 │   │   ├── RoomViewer.jsx               # ✅ ACTIVE - Main room viewer
 │   │   └── WebRTCViewer.jsx             # ❌ DEPRECATED - Simple version
-│   ├── .env.local                        # Local environment config
+│   ├── .env.development                        # Local environment config
 │   ├── .env.production                   # Production environment config
 │   └── vite.config.js                    # Vite configuration
 │

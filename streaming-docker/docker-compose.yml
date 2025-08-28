@@ -1,53 +1,12 @@
-# Ultra Low Latency Streaming System - Complete Implementation
-version: '3.8'
+# Redis Only - Docker Compose Configuration
+# LiveKit ahora se ejecuta nativo con livekit-server.exe
 
 services:
-
-  # ============================================
-  # MediaMTX - SRT/RTMP/WebRTC Server
-  # ============================================
-  mediamtx:
-    image: bluenviron/mediamtx:latest
-    container_name: mediamtx
-    ports:
-      - "8554:8554"       # RTSP
-      - "1937:1935"       # RTMP (usando puerto diferente)
-      - "8004:8888"       # HLS HTTP (puerto temporal para pruebas)
-      - "8890:8889"       # WebRTC HTTP (puerto diferente)
-      - "8190:8189/udp"   # WebRTC UDP (puerto diferente)
-      - "9000:9000"       # SRT
-    volumes:
-      - ./streams:/tmp/hls # Mount for HLS cleanup
-    environment:
-      - MTX_PROTOCOLS=tcp
-    networks:
-      - streaming-net
-    restart: unless-stopped
-
-
-  # ============================================
-  # Redis para sesiones y caché
-  # ============================================
+  # Redis para cache y sessions
   redis:
-    image: redis:7-alpine
+    image: redis:6-alpine
     container_name: streaming-redis
     ports:
       - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
-    networks:
-      - streaming-net
     restart: unless-stopped
-
-
-
-networks:
-  streaming-net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
-
-volumes:
-  redis_data:
+    command: redis-server --bind 0.0.0.0 --port 6379 --protected-mode no --maxmemory 800mb --maxmemory-policy allkeys-lru

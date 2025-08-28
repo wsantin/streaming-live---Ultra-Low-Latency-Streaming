@@ -1,114 +1,217 @@
 #!/usr/bin/env node
-// Script para iniciar ambiente de desarrollo con IP automática
+
 import { spawn } from 'child_process';
 import path from 'path';
-import { detectLocalIP, updateEnvFile, updateViteAllowedHosts } from './detect-ip.js';
-import { getDirname, getSpawnOptions } from './utils.js';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import chalk from 'chalk';
+import ora from 'ora';
+import { main as detectAndUpdateIP } from './detect-ip.js';
 
-const __dirname = getDirname(import.meta.url);
-const rootDir = path.resolve(__dirname, '..');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-console.log('🚀 Iniciando WebRTC Streaming System - DESARROLLO');
-console.log('=' .repeat(60));
+class DevServer {
+  constructor() {
+    this.processes = new Map();
+    this.localIP = null;
+  }
 
-/**
- * Actualiza todos los archivos de ambiente dev con IP detectada
- * @param {string} localIP - IP local detectada
- */
-function updateDevEnvironments(localIP) {
-  console.log('\n🔧 Actualizando archivos .env.local con IP detectada...');
-  
-  // Actualizar frontend-admin .env.local  
-  updateEnvFile(path.join(rootDir, 'frontend-admin', '.env.local'), {
-    'VITE_API_URL': `http://${localIP}:5001`
-  });
-  
-  // Actualizar frontend-viewer .env.local
-  updateEnvFile(path.join(rootDir, 'frontend-viewer', '.env.local'), {
-    'VITE_API_URL': `http://${localIP}:5001`
-  });
-  
-  // Actualizar vite.config.js allowedHosts
-  updateViteAllowedHosts(path.join(rootDir, 'frontend-admin', 'vite.config.js'), localIP);
-  updateViteAllowedHosts(path.join(rootDir, 'frontend-viewer', 'vite.config.js'), localIP);
-  
-  console.log('✅ Todos los archivos de desarrollo actualizados!\n');
-}
-
-/**
- * Inicia un proceso en background
- * @param {string} command - Comando a ejecutar
- * @param {Array} args - Argumentos del comando
- * @param {string} cwd - Directorio de trabajo
- * @param {string} name - Nombre descriptivo
- */
-function startService(command, args, cwd, name) {
-  console.log(`📦 Iniciando ${name}...`);
-  
-  const child = spawn(command, args, getSpawnOptions(path.join(rootDir, cwd)));
-  
-  // Mostrar output inicial
-  child.stdout.on('data', (data) => {
-    const output = data.toString();
-    if (output.includes('Server running') || output.includes('ready in') || output.includes('Local:')) {
-      console.log(`   ✅ ${name} iniciado correctamente`);
+  log(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    switch (type) {
+      case 'success':
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.green(message)}`);
+        break;
+      case 'error':
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.red(message)}`);
+        break;
+      case 'warning':
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.yellow(message)}`);
+        break;
+      default:
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.blue(message)}`);
     }
-  });
-  
-  child.stderr.on('data', (data) => {
-    const error = data.toString();
-    if (error.includes('EADDRINUSE')) {
-      console.log(`   ⚠️  ${name}: Puerto ocupado, continuando...`);
-    }
-  });
-  
-  return child;
-}
+  }
 
-async function main() {
-  try {
-    // 1. Detectar IP local
-    const localIP = detectLocalIP();
+  async sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async runCommand(name, command, args, options = {}) {
+    return new Promise((resolve, reject) => {
+      const proc = spawn(command, args, {
+        cwd: options.cwd || process.cwd(),
+        shell: true,
+        stdio: options.background ? 'ignore' : 'inherit',
+        detached: options.background || false,
+        ...options
+      });
+      
+      if (options.background) {
+        proc.unref();
+        this.processes.set(name.toLowerCase(), proc);
+        resolve(proc);
+      } else {
+        proc.on('close', (code) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`${name} falló con código ${code}`));
+          }
+        });
+      }
+      
+      proc.on('error', (err) => {
+        this.log(`❌ Error en ${name}: ${err.message}`, 'error');
+        reject(err);
+      });
+    });
+  }
+
+  async start() {
+    console.clear();
+    console.log(chalk.blue.bold('🚀 Iniciando Servidor de Streaming'));
+    console.log('='.repeat(40) + '\n');
     
-    // 2. Actualizar archivos de ambiente
-    updateDevEnvironments(localIP);
+    try {
+      // 1. Detectar y actualizar IP
+      this.log('📡 Configurando IP local...');
+      this.localIP = detectAndUpdateIP();
+      await this.sleep(1000);
+      
+      // 2. Iniciar Redis (Docker)
+      const spinner1 = ora('🗄️ Iniciando Redis (Docker)...').start();
+      await this.runCommand(
+        'Redis',
+        'docker-compose',
+        ['up', '-d'],
+        { 
+          cwd: path.join(__dirname, '..', 'streaming-docker'),
+          background: true 
+        }
+      );
+      spinner1.succeed('✅ Redis iniciado');
+      await this.sleep(3000);
+      
+      // 3. Iniciar LiveKit
+      const spinner2 = ora('🎥 Iniciando LiveKit SFU...').start();
+      const livekitPath = path.join(__dirname, '..', 'livekit-native', 'livekit-server.exe');
+      const livekitConfig = path.join(__dirname, '..', 'livekit-native', 'livekit-native-config.yaml');
+      
+      if (!fs.existsSync(livekitPath)) {
+        spinner2.fail('❌ LiveKit no encontrado');
+        this.log(`LiveKit no encontrado en ${livekitPath}`, 'error');
+        this.log('Por favor descarga LiveKit desde: https://github.com/livekit/livekit/releases');
+        process.exit(1);
+      }
+      
+      const livekitProc = spawn(livekitPath, ['--config', livekitConfig], {
+        detached: true,
+        stdio: 'ignore',
+        shell: false
+      });
+      livekitProc.unref();
+      this.processes.set('livekit', livekitProc);
+      spinner2.succeed('✅ LiveKit SFU iniciado');
+      await this.sleep(3000);
+      
+      // 4. Iniciar Backend
+      const spinner3 = ora('🖥️ Iniciando Backend (Puerto 5001)...').start();
+      const backendProc = spawn('npm', ['start'], {
+        cwd: path.join(__dirname, '..', 'backend-local'),
+        shell: true,
+        detached: true,
+        stdio: 'ignore'
+      });
+      backendProc.unref();
+      this.processes.set('backend', backendProc);
+      spinner3.succeed('✅ Backend iniciado');
+      await this.sleep(2000);
+      
+      // 5. Iniciar Frontend Admin
+      const spinner4 = ora('👨‍💼 Iniciando Frontend Admin (Puerto 3000)...').start();
+      const adminProc = spawn('npm', ['run', 'dev'], {
+        cwd: path.join(__dirname, '..', 'frontend-admin'),
+        shell: true,
+        detached: true,
+        stdio: 'ignore'
+      });
+      adminProc.unref();
+      this.processes.set('admin', adminProc);
+      spinner4.succeed('✅ Frontend Admin iniciado');
+      await this.sleep(2000);
+      
+      // 6. Iniciar Frontend Viewer
+      const spinner5 = ora('👁️ Iniciando Frontend Viewer (Puerto 3001)...').start();
+      const viewerProc = spawn('npm', ['run', 'dev'], {
+        cwd: path.join(__dirname, '..', 'frontend-viewer'),
+        shell: true,
+        detached: true,
+        stdio: 'ignore'
+      });
+      viewerProc.unref();
+      this.processes.set('viewer', viewerProc);
+      spinner5.succeed('✅ Frontend Viewer iniciado');
+      
+      // Mostrar información final
+      this.displayInfo();
+      
+      // Mantener proceso vivo
+      console.log(chalk.gray('Presiona Ctrl+C para detener todos los servicios...\n'));
+      process.stdin.resume();
+      
+    } catch (error) {
+      this.log(`❌ Error: ${error.message}`, 'error');
+      process.exit(1);
+    }
+  }
+
+  displayInfo() {
+    console.log('\n' + '='.repeat(50));
+    console.log(chalk.green.bold('✅ Todos los servicios iniciados correctamente'));
+    console.log('='.repeat(50));
     
-    // 3. Iniciar servicios en orden
-    console.log('🔧 Iniciando servicios de desarrollo...\n');
+    console.log('\n📊 ' + chalk.bold('Servicios activos:'));
+    console.log(`   - Redis: ${chalk.cyan('localhost:6379')}`);
+    console.log(`   - LiveKit SFU: ${chalk.cyan(`ws://${this.localIP}:7880`)}`);
+    console.log(`   - Backend: ${chalk.cyan(`http://${this.localIP}:5001`)}`);
+    console.log(`   - Admin: ${chalk.cyan(`http://${this.localIP}:3000`)}`);
+    console.log(`   - Viewer: ${chalk.cyan(`http://${this.localIP}:3001`)}`);
     
-    // Backend primero
-    const backend = startService('npm', ['run', 'dev'], 'backend-local', 'Backend (puerto 5001)');
+    console.log('\n📱 ' + chalk.bold('Para dispositivos en red local:'));
+    console.log(`   - Admin: ${chalk.magenta(`http://${this.localIP}:3000`)}`);
+    console.log(`   - Viewer: ${chalk.magenta(`http://${this.localIP}:3001`)}`);
     
-    // Esperar un poco para el backend
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Frontends
-    const admin = startService('npm', ['run', 'dev'], 'frontend-admin', 'Admin Frontend (puerto 3000)');
-    const viewer = startService('npm', ['run', 'dev'], 'frontend-viewer', 'Viewer Frontend (puerto 3001)');
-    
-    // Esperar que todos inicien
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    console.log('\n🎉 DESARROLLO - Sistema iniciado correctamente!');
-    console.log('=' .repeat(60));
-    console.log('🌐 URLs de acceso:');
-    console.log(`📱 Admin (Streamer):  http://localhost:3000`);
-    console.log(`📱 Admin (Red local): http://${localIP}:3000`);
-    console.log(`📺 Viewer (Espectador): http://localhost:3001`);  
-    console.log(`📺 Viewer (Red local): http://${localIP}:3001`);
-    console.log(`🔧 Backend API:       http://${localIP}:5001/health`);
-    console.log('\n⚡ Funciones:');
-    console.log('✓ IP detectada automáticamente y configurada');
-    console.log('✓ Archivos .env.local actualizados dinámicamente');
-    console.log('✓ Vite allowedHosts configurado para red local');
-    console.log('✓ WebRTC P2P ultra-baja latencia (13ms)');
-    console.log('\n🛑 Para detener: npm run stop:dev');
-    console.log('=' .repeat(60));
-    
-  } catch (error) {
-    console.error('❌ Error iniciando ambiente de desarrollo:', error.message);
-    process.exit(1);
+    console.log('\n🛑 ' + chalk.bold('Para detener:') + ' npm run stop:dev\n');
+  }
+
+  cleanup() {
+    this.log('🛑 Deteniendo servicios...', 'warning');
+    this.processes.forEach((proc, name) => {
+      if (proc && !proc.killed) {
+        this.log(`🔪 Cerrando ${name}...`);
+        proc.kill('SIGTERM');
+      }
+    });
+    process.exit(0);
   }
 }
 
-main();
+// Ejecutar si es llamado directamente
+if (process.argv[1] === __filename) {
+  const server = new DevServer();
+  
+  // Manejadores de señales
+  process.on('SIGINT', () => {
+    server.cleanup();
+  });
+  
+  process.on('SIGTERM', () => {
+    server.cleanup();
+  });
+  
+  server.start();
+}
+
+export { DevServer };

@@ -76,7 +76,7 @@ Para streaming móvil global con túneles HTTPS.
 ### Backend:
 ```
 backend-local/
-├── .env.local      # Configuración local
+├── .env.development      # Configuración local
 ├── .env.production      # Configuración producción (auto-actualizada)
 └── config/
     └── constants.js # Lee variables de entorno
@@ -85,7 +85,7 @@ backend-local/
 ### Frontend Admin:
 ```
 frontend-admin/
-├── .env.local      # URLs locales
+├── .env.development      # URLs locales
 ├── .env.production      # URLs túneles (auto-actualizada)
 ├── vite.config.js  # Permite hosts túneles
 └── src/config/
@@ -95,7 +95,7 @@ frontend-admin/
 ### Frontend Viewer:
 ```
 frontend-viewer/
-├── .env.local      # URLs locales  
+├── .env.development      # URLs locales  
 ├── .env.production      # URLs túneles (auto-actualizada)
 ├── vite.config.js  # Permite hosts túneles
 └── src/config/
@@ -235,7 +235,7 @@ https://viewer-xyz.trycloudflare.com?debug=true
 ## 🔄 **Migración Automática**
 
 El sistema detecta automáticamente el ambiente:
-- `NODE_ENV=local` → Usa `.env.local`
+- `NODE_ENV=local` → Usa `.env.development`
 - `NODE_ENV=prod` → Usa `.env.prod`
 
 Los archivos `constants.js` leen las variables de entorno correspondientes automáticamente.

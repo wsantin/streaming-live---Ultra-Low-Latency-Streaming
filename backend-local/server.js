@@ -1,51 +1,4 @@
-const express = require('express');
-const cors = require('cors');
-const http = require('http');
-const socketIO = require('socket.io');
-const redis = require('redis');
-const os = require('os');
-const { v4: uuidv4 } = require('uuid');
-const WebRTCSignalingServer = require('./webrtc-signaling');
-const { 
-  SERVER_CONFIG, 
-  CORS_CONFIG, 
-  SOCKET_CONFIG 
-} = require('./config/constants');
-
-// Función para detectar IP local automáticamente
-function detectLocalIP() {
-  const interfaces = os.networkInterfaces();
-  
-  // Intentar encontrar IP de WiFi o Ethernet primero
-  const preferredInterfaces = ['Wi-Fi', 'Ethernet', 'wlan0', 'eth0'];
-  
-  for (const interfaceName of preferredInterfaces) {
-    if (interfaces[interfaceName]) {
-      for (const iface of interfaces[interfaceName]) {
-        if (iface.family === 'IPv4' && !iface.internal) {
-          console.log(`🌐 IP detectada en ${interfaceName}: ${iface.address}`);
-          return iface.address;
-        }
-      }
-    }
-  }
-  
-  // Fallback: buscar cualquier interfaz IPv4 no internal
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        console.log(`🌐 IP detectada en ${name}: ${iface.address}`);
-        return iface.address;
-      }
-    }
-  }
-  
-  return 'localhost';
-}
-
-const LOCAL_IP = detectLocalIP();
-
-// Load environment-specific .env file based on NODE_ENV
+// Load environment-specific .env file based on NODE_ENV FIRST
 const getEnvFile = () => {
   const nodeEnv = process.env.NODE_ENV || 'development';
   console.log(`🔧 Loading environment: ${nodeEnv}`);
@@ -55,10 +8,10 @@ const getEnvFile = () => {
     case 'production':
       return '.env.production';
     case 'local':
-      return '.env.local';
+      return '.env.development';
     case 'development':
     default:
-      return '.env.local';
+      return '.env.development';
   }
 };
 
@@ -66,21 +19,38 @@ const envFile = getEnvFile();
 console.log(`📄 Loading env file: ${envFile}`);
 require('dotenv').config({ path: envFile });
 
+// Now import dependencies that rely on environment variables
+const express = require('express');
+const cors = require('cors');
+const http = require('http');
+const socketIO = require('socket.io');
+const redis = require('redis');
+const { v4: uuidv4 } = require('uuid');
+// WebRTC P2P removed - using LiveKit SFU only
+const LiveKitManager = require('./livekit-integration');
+const { 
+  SERVER_CONFIG, 
+  CORS_CONFIG, 
+  SOCKET_CONFIG 
+} = require('./config/constants');
+
+console.log(`🔗 LiveKit URL configurada: ${SERVER_CONFIG.LIVEKIT.HOST}`);
+
 const app = express();
 const server = http.createServer(app);
 
 
 // Redis client - conectar a Docker
 const redisClient = redis.createClient({
-  host: SERVER_CONFIG.REDIS.HOST,
-  port: SERVER_CONFIG.REDIS.PORT,
-  retry_strategy: (options) => {
-    if (options.error && options.error.code === 'ECONNREFUSED') {
-      console.log('⚠️ Redis server connection refused. Using in-memory storage.');
-      return undefined; // Stop retrying
-    }
-    return Math.min(options.attempt * 100, 3000);
+  socket: {
+    host: SERVER_CONFIG.REDIS.HOST,
+    port: SERVER_CONFIG.REDIS.PORT
   }
+});
+
+// Connect to Redis
+redisClient.connect().catch(err => {
+  console.log('⚠️ Redis connection failed. Using fallback mode:', err.message);
 });
 
 // Redis event handlers
@@ -126,25 +96,54 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// Test token generation endpoint
+app.post('/', async (req, res) => {
+  try {
+    const { action, roomName, participantName, isPublisher } = req.body;
+    
+    if (action === 'generate-token') {
+      const token = await liveKitManager.generateAccessToken(
+        roomName, 
+        participantName, 
+        isPublisher
+      );
+      
+      res.json({
+        success: true,
+        token,
+        livekitUrl: SERVER_CONFIG.LIVEKIT.HOST,
+        roomName,
+        participantName
+      });
+    } else {
+      res.status(400).json({ error: 'Invalid action' });
+    }
+  } catch (error) {
+    console.error('❌ Error generating test token:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Health check endpoint with LiveKit integration
+app.get('/health', async (req, res) => {
+  const livekitHealth = await liveKitManager.healthCheck();
+  
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     memory: process.memoryUsage(),
     services: {
-      redis: redisClient.connected ? 'connected' : 'disconnected',
-      webrtc: 'active',
-      webrtc_signaling: 'active'
+      redis: redisClient.isOpen ? 'connected' : 'disconnected',
+      livekit_sfu: livekitHealth.status,
+      livekit_server: livekitHealth.server
     }
   });
 });
 
-// Endpoint para obtener IP local para WebRTC
+// Endpoint para obtener IP local
 app.get('/api/network/local-ip', (req, res) => {
   res.json({
-    localIP: LOCAL_IP,
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
@@ -160,96 +159,315 @@ let streamingState = {
 
 const io = socketIO(server, SOCKET_CONFIG);
 
-// Initialize WebRTC Signaling Server for Ultra-Low Latency Streaming
-const webrtcSignaling = new WebRTCSignalingServer(io);
+// Initialize LiveKit Manager for SFU scaling
+const liveKitManager = new LiveKitManager();
 
-// Cleanup inactive sessions every 5 minutes
-setInterval(() => {
-  webrtcSignaling.cleanupInactiveSessions();
-}, 5 * 60 * 1000);
+// Simplified socket handling for LiveKit SFU only
 
-// Función para obtener URLs según el entorno
-function getStreamUrls() {
-  const isDev = process.env.NODE_ENV === 'development';
-  
-  if (isDev) {
-    return {
-      rtmp: STREAMING_URLS.MEDIAMTX.RTMP,
-      hls: STREAMING_URLS.MEDIAMTX.HLS,
-      webrtc: STREAMING_URLS.MEDIAMTX.WEBRTC,
-      srs: {
-        rtmp: STREAMING_URLS.SRS.RTMP,
-        hls: STREAMING_URLS.SRS.HLS,
-        webrtc: STREAMING_URLS.SRS.WEBRTC,
-        api: STREAMING_URLS.SRS.API
-      }
-    };
-  } else {
-    return {
-      rtmp: process.env.PRODUCTION_RTMP_URL || STREAMING_URLS.MEDIAMTX.RTMP,
-      hls: process.env.PRODUCTION_HLS_URL || STREAMING_URLS.MEDIAMTX.HLS,
-      webrtc: process.env.PRODUCTION_WEBRTC_URL || STREAMING_URLS.MEDIAMTX.WEBRTC,
-      srs: {
-        rtmp: process.env.PRODUCTION_SRS_RTMP || STREAMING_URLS.SRS.RTMP,
-        hls: process.env.PRODUCTION_SRS_HLS || STREAMING_URLS.SRS.HLS,
-        webrtc: process.env.PRODUCTION_SRS_WEBRTC || STREAMING_URLS.SRS.WEBRTC,
-        api: process.env.PRODUCTION_SRS_API || STREAMING_URLS.SRS.API
-      }
-    };
-  }
-}
+// Function removed - using LiveKit SFU only, no legacy streaming URLs needed
 
-// Socket.IO connection handling
+// ==============================================
+// NUEVO PROTOCOLO DE COMUNICACIÓN LIMPIO
+// ==============================================
+
+// Estado global del sistema
+const globalState = {
+  activeStreams: new Map(), // roomName -> streamData
+  connectedViewers: new Map(), // socketId -> viewerData
+  connectedAdmins: new Map()  // socketId -> adminData
+};
+
+// Socket.IO connection handling - REESTRUCTURADO
 io.on('connection', (socket) => {
-  console.log(`🔗 Client connected: ${socket.id}`);
+  console.log(`🔗 Cliente conectado: ${socket.id}`);
   
-  // Send current streaming state
-  socket.emit('stream:status', streamingState);
-  
-  // Handle viewer count
-  socket.on('viewer:join', () => {
-    streamingState.viewers++;
-    io.emit('viewers:count', streamingState.viewers);
-    console.log(`👥 Viewer joined. Total: ${streamingState.viewers}`);
+  // 🎬 EVENTOS DE ADMIN (STREAMER)
+  socket.on('stream:start', async (data) => {
+    console.log(`🚀 [${socket.id}] Iniciando stream:`, data);
+    try {
+      const { roomName, streamerName } = data;
+      
+      // Validar que no exista la sala
+      if (globalState.activeStreams.has(roomName)) {
+        socket.emit('stream:error', {
+          success: false,
+          error: 'Sala ya existe',
+          code: 'ROOM_EXISTS'
+        });
+        return;
+      }
+      
+      // Crear sala en LiveKit
+      await liveKitManager.createOrGetRoom(roomName, 1000);
+      
+      // Generar token para streamer
+      const token = await liveKitManager.generateAccessToken(roomName, streamerName, true);
+      
+      // Guardar en estado global
+      const streamData = {
+        roomName,
+        streamerName,
+        streamerId: socket.id,
+        startedAt: new Date().toISOString(),
+        viewers: 0,
+        isActive: true
+      };
+      globalState.activeStreams.set(roomName, streamData);
+      globalState.connectedAdmins.set(socket.id, { roomName, streamerName });
+      
+      // Responder al admin
+      socket.emit('stream:started', {
+        success: true,
+        roomName,
+        livekitToken: token,
+        livekitUrl: SERVER_CONFIG.LIVEKIT.HOST
+      });
+      
+      // Broadcast a todos los clientes
+      io.emit('rooms:update', {
+        rooms: Array.from(globalState.activeStreams.values()),
+        total: globalState.activeStreams.size
+      });
+      
+      console.log(`✅ Stream iniciado: ${roomName} por ${streamerName}`);
+      
+    } catch (error) {
+      console.error(`❌ Error iniciando stream:`, error);
+      
+      // Determinar tipo de error y código apropiado
+      let errorCode = 'LIVEKIT_ERROR';
+      let userFriendlyMessage = error.message;
+      
+      if (error.message.includes('LiveKit server not reachable')) {
+        errorCode = 'LIVEKIT_UNAVAILABLE';
+        userFriendlyMessage = 'El servidor LiveKit no está disponible. Asegúrate de que el sistema esté iniciado correctamente.';
+      } else if (error.message.includes('ECONNREFUSED')) {
+        errorCode = 'CONNECTION_REFUSED';
+        userFriendlyMessage = 'No se puede conectar al servidor LiveKit. Verifica que esté ejecutándose.';
+      }
+      
+      socket.emit('stream:error', {
+        success: false,
+        error: userFriendlyMessage,
+        code: errorCode,
+        technical: error.message
+      });
+    }
   });
   
-  socket.on('viewer:leave', () => {
-    streamingState.viewers = Math.max(0, streamingState.viewers - 1);
-    io.emit('viewers:count', streamingState.viewers);
-    console.log(`👥 Viewer left. Total: ${streamingState.viewers}`);
+  socket.on('stream:stop', async (data) => {
+    console.log(`🛑 [${socket.id}] Deteniendo stream:`, data);
+    try {
+      const { roomName } = data;
+      
+      if (!globalState.activeStreams.has(roomName)) {
+        socket.emit('stream:error', {
+          success: false,
+          error: 'Sala no encontrada',
+          code: 'ROOM_NOT_FOUND'
+        });
+        return;
+      }
+      
+      // Eliminar de LiveKit (opcional, se auto-limpia)
+      // await liveKitManager.deleteRoom(roomName);
+      
+      // Eliminar del estado global
+      globalState.activeStreams.delete(roomName);
+      globalState.connectedAdmins.delete(socket.id);
+      
+      // Responder al admin
+      socket.emit('stream:stopped', {
+        success: true,
+        roomName
+      });
+      
+      // Broadcast actualización
+      io.emit('rooms:update', {
+        rooms: Array.from(globalState.activeStreams.values()),
+        total: globalState.activeStreams.size
+      });
+      
+      console.log(`✅ Stream detenido: ${roomName}`);
+      
+    } catch (error) {
+      console.error(`❌ Error deteniendo stream:`, error);
+      socket.emit('stream:error', {
+        success: false,
+        error: error.message,
+        code: 'LIVEKIT_ERROR'
+      });
+    }
   });
   
-  socket.on('disconnect', () => {
-    console.log(`🔌 Client disconnected: ${socket.id}`);
-    streamingState.viewers = Math.max(0, streamingState.viewers - 1);
-    io.emit('viewers:count', streamingState.viewers);
+  socket.on('stream:get-status', () => {
+    const adminData = globalState.connectedAdmins.get(socket.id);
+    if (adminData && globalState.activeStreams.has(adminData.roomName)) {
+      const streamData = globalState.activeStreams.get(adminData.roomName);
+      socket.emit('stream:status', {
+        isStreaming: true,
+        ...streamData,
+        duration: Date.now() - new Date(streamData.startedAt).getTime()
+      });
+    } else {
+      socket.emit('stream:status', {
+        isStreaming: false,
+        roomName: null,
+        viewers: 0,
+        duration: 0
+      });
+    }
   });
+  
+  // 👁️ EVENTOS DE VIEWER
+  socket.on('rooms:list', () => {
+    console.log(`📋 [${socket.id}] Solicitando lista de salas`);
+    socket.emit('rooms:update', {
+      rooms: Array.from(globalState.activeStreams.values()),
+      total: globalState.activeStreams.size
+    });
+  });
+  
+  socket.on('room:join', async (data) => {
+    console.log(`👁️ [${socket.id}] Uniéndose a sala:`, data);
+    try {
+      const { roomName, viewerName } = data;
+      
+      if (!globalState.activeStreams.has(roomName)) {
+        socket.emit('room:error', {
+          success: false,
+          error: 'Sala no encontrada',
+          code: 'ROOM_NOT_FOUND'
+        });
+        return;
+      }
+      
+      // Generar token para viewer
+      const token = await liveKitManager.generateAccessToken(roomName, viewerName, false);
+      
+      // Guardar viewer
+      const viewerData = { roomName, viewerName, joinedAt: new Date().toISOString() };
+      globalState.connectedViewers.set(socket.id, viewerData);
+      
+      // Incrementar contador
+      const streamData = globalState.activeStreams.get(roomName);
+      streamData.viewers++;
+      
+      // Responder al viewer
+      const streamInfo = globalState.activeStreams.get(roomName);
+      socket.emit('room:joined', {
+        success: true,
+        roomName,
+        livekitToken: token,
+        livekitUrl: SERVER_CONFIG.LIVEKIT.HOST,
+        streamerName: streamInfo.streamerName
+      });
+      
+      // Broadcast que se unió un viewer
+      io.emit('room:viewer-joined', {
+        roomName,
+        viewerName,
+        totalViewers: streamData.viewers
+      });
+      
+      console.log(`✅ Viewer ${viewerName} se unió a ${roomName}`);
+      
+    } catch (error) {
+      console.error(`❌ Error uniendo a sala:`, error);
+      socket.emit('room:error', {
+        success: false,
+        error: error.message,
+        code: 'LIVEKIT_ERROR'
+      });
+    }
+  });
+  
+  socket.on('room:leave', (data) => {
+    console.log(`🚪 [${socket.id}] Saliendo de sala:`, data);
+    const viewerData = globalState.connectedViewers.get(socket.id);
+    if (viewerData) {
+      const { roomName, viewerName } = viewerData;
+      
+      // Decrementar contador
+      if (globalState.activeStreams.has(roomName)) {
+        const streamData = globalState.activeStreams.get(roomName);
+        streamData.viewers = Math.max(0, streamData.viewers - 1);
+        
+        // Broadcast que salió un viewer
+        io.emit('room:viewer-left', {
+          roomName,
+          viewerName,
+          totalViewers: streamData.viewers
+        });
+      }
+      
+      globalState.connectedViewers.delete(socket.id);
+      
+      socket.emit('room:left', {
+        success: true,
+        roomName
+      });
+      
+      console.log(`✅ Viewer ${viewerName} salió de ${roomName}`);
+    }
+  });
+  
+  // 🔌 DESCONEXIÓN
+  socket.on('disconnect', (reason) => {
+    console.log(`🔌 Cliente desconectado: ${socket.id} - ${reason}`);
+    
+    // Limpiar admin si se desconecta
+    const adminData = globalState.connectedAdmins.get(socket.id);
+    if (adminData) {
+      const { roomName } = adminData;
+      globalState.activeStreams.delete(roomName);
+      globalState.connectedAdmins.delete(socket.id);
+      
+      // Broadcast que se cerró el stream
+      io.emit('rooms:update', {
+        rooms: Array.from(globalState.activeStreams.values()),
+        total: globalState.activeStreams.size
+      });
+      
+      console.log(`🛑 Stream ${roomName} cerrado por desconexión del admin`);
+    }
+    
+    // Limpiar viewer si se desconecta
+    const viewerData = globalState.connectedViewers.get(socket.id);
+    if (viewerData) {
+      const { roomName, viewerName } = viewerData;
+      
+      // Decrementar contador
+      if (globalState.activeStreams.has(roomName)) {
+        const streamData = globalState.activeStreams.get(roomName);
+        streamData.viewers = Math.max(0, streamData.viewers - 1);
+        
+        // Broadcast que salió un viewer
+        io.emit('room:viewer-left', {
+          roomName,
+          viewerName,
+          totalViewers: streamData.viewers
+        });
+      }
+      
+      globalState.connectedViewers.delete(socket.id);
+      console.log(`👋 Viewer ${viewerName} desconectado de ${roomName}`);
+    }
+  });
+  
+  console.log(`📊 Estado actual: ${globalState.activeStreams.size} streams, ${globalState.connectedViewers.size} viewers`);
 });
+
 
 // Enterprise HLS Streaming API
 
-// WebRTC Ultra-Low Latency API Routes
-app.get('/api/webrtc/stats', (req, res) => {
-  res.json(webrtcSignaling.getStats());
-});
-
-app.post('/api/webrtc/disconnect/:socketId', (req, res) => {
-  const { socketId } = req.params;
-  const success = webrtcSignaling.disconnectClient(socketId);
-  res.json({ success, socketId });
-});
-
-app.post('/api/webrtc/broadcast', (req, res) => {
-  const { event, data } = req.body;
-  webrtcSignaling.broadcastToAll(event, data);
-  res.json({ success: true, event, recipients: webrtcSignaling.getStats().totalConnections });
-});
+// LiveKit SFU routes only - P2P WebRTC removed
 
 
 // Browser streaming endpoint - simplified
 app.post('/api/stream/browser/start', async (req, res) => {
   try {
-    const { streamKey = STREAM_DEFAULTS.KEY } = req.body;
+    const { streamKey = 'default-stream' } = req.body;
     
     if (streamingState.isLive) {
       return res.status(400).json({
@@ -259,7 +477,6 @@ app.post('/api/stream/browser/start', async (req, res) => {
     }
 
     const streamId = uuidv4();
-    const urls = getStreamUrls();
     
     streamingState = {
       isLive: true,
@@ -271,11 +488,7 @@ app.post('/api/stream/browser/start', async (req, res) => {
     // Emit stream started event
     io.emit('stream:started', {
       streamId,
-      streamKey,
-      hlsUrl: `${urls.hls}/${streamKey}/index.m3u8`,
-      rtmpUrl: `${urls.rtmp}/${streamKey}`,
-      webrtcUrl: `${urls.webrtc}/${streamKey}`,
-      srs: urls.srs
+      streamKey
     });
 
     console.log(`🚀 Browser stream started: ${streamId} (${streamKey})`);
@@ -283,12 +496,8 @@ app.post('/api/stream/browser/start', async (req, res) => {
     res.json({
       success: true,
       streamId: streamId,
-      rtmpUrl: `${urls.rtmp}/${streamKey}`,
-      hlsUrl: `${urls.hls}/${streamKey}/index.m3u8`,
-      webrtcUrl: `${urls.webrtc}/${streamKey}`,
-      srs: urls.srs,
       streamKey,
-      message: 'Stream iniciado correctamente'
+      message: 'Stream iniciado correctamente - Using LiveKit SFU'
     });
 
   } catch (error) {
@@ -340,8 +549,168 @@ app.get('/api/stream/status', (req, res) => {
   res.json({
     ...streamingState,
     uptime: streamingState.isLive ? Date.now() - streamingState.startTime : 0,
-    urls: getStreamUrls()
+    livekitUrl: SERVER_CONFIG.LIVEKIT.HOST
   });
+});
+
+// ===== LiveKit SFU API Endpoints =====
+
+// Generate LiveKit access token
+app.post('/api/livekit/token', async (req, res) => {
+  try {
+    const { roomName, participantName, isPublisher = false, canPublish = false } = req.body;
+    const actualIsPublisher = isPublisher || canPublish;
+    
+    if (!roomName || !participantName) {
+      return res.status(400).json({
+        error: 'roomName and participantName are required'
+      });
+    }
+
+    const token = await liveKitManager.generateAccessToken(roomName, participantName, actualIsPublisher);
+    
+    res.json({
+      success: true,
+      token,
+      roomName,
+      participantName,
+      isPublisher: actualIsPublisher,
+      serverUrl: SERVER_CONFIG.LIVEKIT.HOST
+    });
+
+  } catch (error) {
+    console.error('❌ Error generating LiveKit token:', error);
+    res.status(500).json({
+      error: 'Error generating access token',
+      details: error.message
+    });
+  }
+});
+
+// Create or get LiveKit room
+app.post('/api/livekit/rooms', async (req, res) => {
+  try {
+    const { roomName, maxParticipants = 1000 } = req.body;
+    
+    if (!roomName) {
+      return res.status(400).json({
+        error: 'roomName is required'
+      });
+    }
+
+    const room = await liveKitManager.createOrGetRoom(roomName, maxParticipants);
+    
+    res.json({
+      success: true,
+      room: {
+        name: room.name,
+        creationTime: room.creationTime ? room.creationTime.toString() : null,
+        maxParticipants: room.maxParticipants,
+        numParticipants: room.numParticipants
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error creating LiveKit room:', error);
+    res.status(500).json({
+      error: 'Error creating room',
+      details: error.message
+    });
+  }
+});
+
+// Get LiveKit room statistics
+app.get('/api/livekit/rooms/:roomName/stats', async (req, res) => {
+  try {
+    const { roomName } = req.params;
+    const stats = await liveKitManager.getRoomStats(roomName);
+    
+    res.json({
+      success: true,
+      ...stats
+    });
+
+  } catch (error) {
+    console.error('❌ Error getting room stats:', error);
+    res.status(500).json({
+      error: 'Error getting room statistics',
+      details: error.message
+    });
+  }
+});
+
+// List all active LiveKit rooms
+app.get('/api/livekit/rooms', async (req, res) => {
+  try {
+    const rooms = await liveKitManager.listActiveRooms();
+    
+    res.json({
+      success: true,
+      totalRooms: rooms.length,
+      rooms
+    });
+
+  } catch (error) {
+    console.error('❌ Error listing rooms:', error);
+    res.status(500).json({
+      error: 'Error listing rooms',
+      details: error.message
+    });
+  }
+});
+
+// Remove participant from LiveKit room
+app.delete('/api/livekit/rooms/:roomName/participants/:participantId', async (req, res) => {
+  try {
+    const { roomName, participantId } = req.params;
+    const success = await liveKitManager.removeParticipant(roomName, participantId);
+    
+    res.json({
+      success,
+      message: success ? 'Participant removed' : 'Failed to remove participant'
+    });
+
+  } catch (error) {
+    console.error('❌ Error removing participant:', error);
+    res.status(500).json({
+      error: 'Error removing participant',
+      details: error.message
+    });
+  }
+});
+
+// LiveKit health check
+app.get('/api/livekit/health', async (req, res) => {
+  try {
+    const health = await liveKitManager.healthCheck();
+    res.json(health);
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+});
+
+// Limpiar salas huérfanas (sin participantes activos)
+app.delete('/api/livekit/rooms/cleanup', async (req, res) => {
+  try {
+    const result = await liveKitManager.cleanupEmptyRooms();
+    
+    res.json({
+      success: true,
+      message: 'Limpieza completada',
+      roomsDeleted: result.deletedRooms,
+      totalRoomsAfter: result.totalRoomsAfter
+    });
+
+  } catch (error) {
+    console.error('❌ Error limpiando salas:', error);
+    res.status(500).json({
+      error: 'Error limpiando salas huérfanas',
+      details: error.message
+    });
+  }
 });
 
 // Cleanup on server shutdown
@@ -383,7 +752,7 @@ console.log(`
     ==========================================
     Environment: ${environment}
     Port: ${PORT}
-    WebRTC Signaling: Active
+    LiveKit SFU: Active
     Enterprise HLS: Active
     Ultra-Low Latency: 200-500ms
     ==========================================
@@ -398,8 +767,4 @@ if (useDocker) {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server running on port ${PORT}`);
   console.log(`🎯 Health check: http://localhost:${PORT}/health`);
-  console.log(`🌐 Network access: http://${LOCAL_IP}:${PORT}/health`);
-  console.log(`⚡ WebRTC API: http://${LOCAL_IP}:${PORT}/api/webrtc/stats`);
-  console.log(`📱 Local IP endpoint: http://${LOCAL_IP}:${PORT}/api/network/local-ip`);
-  console.log(`📱 Mobile access: http://${LOCAL_IP}:${PORT}`);
 });

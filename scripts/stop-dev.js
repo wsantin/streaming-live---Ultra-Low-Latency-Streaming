@@ -1,107 +1,161 @@
 #!/usr/bin/env node
-// Script para detener ambiente de desarrollo
-import { spawn } from 'child_process';
 
-console.log('🛑 Deteniendo WebRTC Streaming System - DESARROLLO');
-console.log('=' .repeat(55));
+import { execSync } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import chalk from 'chalk';
+import ora from 'ora';
 
-/**
- * Mata procesos por puerto específico
- * @param {number} port - Puerto a liberar
- * @param {string} name - Nombre del servicio
- */
-function killProcessByPort(port, name) {
-  return new Promise((resolve) => {
-    console.log(`🔧 Deteniendo ${name} (puerto ${port})...`);
-    
-    // En Windows
-    if (process.platform === 'win32') {
-      const netstat = spawn('netstat', ['-ano'], { stdio: 'pipe' });
-      let output = '';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+class DevStopper {
+  constructor() {
+    this.killedProcesses = [];
+  }
+
+  log(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    switch (type) {
+      case 'success':
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.green(message)}`);
+        break;
+      case 'error':
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.red(message)}`);
+        break;
+      case 'warning':
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.yellow(message)}`);
+        break;
+      default:
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.blue(message)}`);
+    }
+  }
+
+  async killProcessByName(processName, windowTitle = null) {
+    try {
+      let command;
+      if (windowTitle) {
+        command = `taskkill /f /im ${processName} /fi "WINDOWTITLE eq ${windowTitle}*"`;
+      } else {
+        command = `taskkill /f /im ${processName}`;
+      }
       
-      netstat.stdout.on('data', (data) => {
-        output += data.toString();
-      });
+      execSync(command, { stdio: 'pipe' });
+      this.killedProcesses.push(processName);
+      return true;
+    } catch (error) {
+      // Proceso no encontrado o ya terminado
+      return false;
+    }
+  }
+
+  async killProcessByPort(port) {
+    try {
+      // Encontrar PID usando el puerto
+      const netstatOutput = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf8' });
+      const lines = netstatOutput.split('\n');
       
-      netstat.on('close', () => {
-        const lines = output.split('\n');
-        const portLine = lines.find(line => line.includes(`:${port} `));
-        
-        if (portLine) {
-          const parts = portLine.trim().split(/\s+/);
-          const pid = parts[parts.length - 1];
-          
-          if (pid && pid !== '0') {
-            const kill = spawn('taskkill', ['/F', '/PID', pid], { stdio: 'ignore' });
-            kill.on('close', () => {
-              console.log(`   ✅ ${name} detenido (PID: ${pid})`);
-              resolve();
-            });
-            return;
+      for (const line of lines) {
+        const match = line.match(/\s+(\d+)\s*$/);
+        if (match) {
+          const pid = match[1];
+          try {
+            execSync(`taskkill /f /pid ${pid}`, { stdio: 'pipe' });
+            this.log(`🔪 Proceso en puerto ${port} terminado (PID: ${pid})`);
+            return true;
+          } catch {
+            // PID ya terminado
           }
         }
-        
-        console.log(`   ℹ️  ${name} no estaba ejecutándose`);
-        resolve();
-      });
-    } else {
-      // En Linux/Mac
-      const lsof = spawn('lsof', ['-ti', `:${port}`], { stdio: 'pipe' });
-      let pids = '';
-      
-      lsof.stdout.on('data', (data) => {
-        pids += data.toString();
-      });
-      
-      lsof.on('close', () => {
-        if (pids.trim()) {
-          const pidList = pids.trim().split('\n');
-          pidList.forEach(pid => {
-            spawn('kill', ['-9', pid], { stdio: 'ignore' });
-          });
-          console.log(`   ✅ ${name} detenido`);
-        } else {
-          console.log(`   ℹ️  ${name} no estaba ejecutándose`);
-        }
-        resolve();
-      });
+      }
+      return false;
+    } catch {
+      return false;
     }
-  });
-}
+  }
 
-async function main() {
-  try {
-    // Detener servicios por puerto
-    await Promise.all([
-      killProcessByPort(5001, 'Backend'),
-      killProcessByPort(3000, 'Admin Frontend'), 
-      killProcessByPort(3001, 'Viewer Frontend')
-    ]);
+  async stopRedis() {
+    const spinner = ora('🔪 Deteniendo Redis (Docker)...').start();
     
-    // Matar procesos npm/nodemon restantes
-    console.log('\n🔧 Limpiando procesos npm/nodemon...');
-    
-    if (process.platform === 'win32') {
-      spawn('taskkill', ['/F', '/IM', 'npm.exe'], { stdio: 'ignore' });
-      spawn('taskkill', ['/F', '/IM', 'nodemon.exe'], { stdio: 'ignore' });
-      spawn('taskkill', ['/F', '/IM', 'node.exe', '/FI', 'WINDOWTITLE eq *streaming*'], { stdio: 'ignore' });
-    } else {
-      spawn('pkill', ['-f', 'npm.*streaming'], { stdio: 'ignore' });
-      spawn('pkill', ['-f', 'nodemon.*streaming'], { stdio: 'ignore' });
+    try {
+      execSync('docker-compose down', {
+        cwd: path.join(__dirname, '..', 'streaming-docker'),
+        stdio: 'pipe'
+      });
+      spinner.succeed('✅ Redis detenido');
+    } catch (error) {
+      spinner.warn('⚠️ Redis ya estaba detenido o no se pudo detener');
     }
+  }
+
+  async stop() {
+    console.log(chalk.red.bold('🛑 Deteniendo Servidor de Streaming'));
+    console.log('='.repeat(40) + '\n');
+
+    // Matar procesos Node.js específicos (excluyendo Claude Code)
+    const spinner1 = ora('🔪 Cerrando procesos Node.js...').start();
     
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const nodeProcessesKilled = [
+      await this.killProcessByName('node.exe', 'Backend'),
+      await this.killProcessByName('node.exe', 'Admin'),
+      await this.killProcessByName('node.exe', 'Viewer')
+    ];
+
+    if (nodeProcessesKilled.some(killed => killed)) {
+      spinner1.succeed('✅ Procesos Node.js cerrados');
+    } else {
+      spinner1.warn('⚠️ No se encontraron procesos Node.js específicos');
+    }
+
+    // Matar LiveKit Server
+    const spinner2 = ora('🔪 Cerrando LiveKit Server...').start();
+    const livekitKilled = await this.killProcessByName('livekit-server.exe');
     
-    console.log('\n✅ DESARROLLO - Sistema detenido correctamente!');
-    console.log('🔍 Puertos liberados: 5001, 3000, 3001');
-    console.log('🔧 Procesos npm/nodemon terminados');
-    console.log('🚀 Para reiniciar: npm run dev');
-    console.log('=' .repeat(55));
+    if (livekitKilled) {
+      spinner2.succeed('✅ LiveKit Server cerrado');
+    } else {
+      spinner2.warn('⚠️ LiveKit Server no estaba ejecutándose');
+    }
+
+    // Detener Redis
+    await this.stopRedis();
+
+    // Matar procesos por puerto como respaldo
+    const ports = [5001, 3000, 3001, 7880];
+    let portProcessesKilled = 0;
     
-  } catch (error) {
-    console.error('❌ Error deteniendo desarrollo:', error.message);
-    process.exit(1);
+    for (const port of ports) {
+      if (await this.killProcessByPort(port)) {
+        portProcessesKilled++;
+      }
+    }
+
+    if (portProcessesKilled > 0) {
+      this.log(`🔪 ${portProcessesKilled} procesos adicionales cerrados por puerto`);
+    }
+
+    console.log('\n' + '='.repeat(50));
+    console.log(chalk.green.bold('✅ Todos los servicios han sido detenidos'));
+    console.log('='.repeat(50) + '\n');
+
+    if (this.killedProcesses.length > 0) {
+      this.log(`Procesos terminados: ${this.killedProcesses.join(', ')}`, 'success');
+    }
+
+    this.log('Sistema limpio y listo para reiniciar', 'success');
   }
 }
 
-main();
+// Ejecutar si es llamado directamente
+if (process.argv[1] === __filename) {
+  const stopper = new DevStopper();
+  
+  stopper.stop().then(() => {
+    process.exit(0);
+  }).catch((error) => {
+    console.error(chalk.red(`❌ Error deteniendo servicios: ${error.message}`));
+    process.exit(1);
+  });
+}
+
+export { DevStopper };

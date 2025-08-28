@@ -1,180 +1,242 @@
 #!/usr/bin/env node
-// Script para detener ambiente de producción
-import { spawn } from 'child_process';
-import fs from 'fs';
+
+import { execSync } from 'child_process';
 import path from 'path';
-import { getDirname } from './utils.js';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import chalk from 'chalk';
+import ora from 'ora';
 
-const __dirname = getDirname(import.meta.url);
-const rootDir = path.resolve(__dirname, '..');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-console.log('🛑 Deteniendo WebRTC Streaming System - PRODUCCIÓN');
-console.log('=' .repeat(58));
+class ProdStopper {
+  constructor() {
+    this.killedProcesses = [];
+  }
 
-/**
- * Mata procesos por puerto específico
- * @param {number} port - Puerto a liberar
- * @param {string} name - Nombre del servicio
- */
-function killProcessByPort(port, name) {
-  return new Promise((resolve) => {
-    console.log(`🔧 Deteniendo ${name} (puerto ${port})...`);
-    
-    // En Windows
-    if (process.platform === 'win32') {
-      const netstat = spawn('netstat', ['-ano'], { stdio: 'pipe' });
-      let output = '';
-      
-      netstat.stdout.on('data', (data) => {
-        output += data.toString();
-      });
-      
-      netstat.on('close', () => {
-        const lines = output.split('\n');
-        const portLine = lines.find(line => line.includes(`:${port} `));
-        
-        if (portLine) {
-          const parts = portLine.trim().split(/\s+/);
-          const pid = parts[parts.length - 1];
-          
-          if (pid && pid !== '0') {
-            const kill = spawn('taskkill', ['/F', '/PID', pid], { stdio: 'ignore' });
-            kill.on('close', () => {
-              console.log(`   ✅ ${name} detenido (PID: ${pid})`);
-              resolve();
-            });
-            return;
-          }
-        }
-        
-        console.log(`   ℹ️  ${name} no estaba ejecutándose`);
-        resolve();
-      });
-    } else {
-      // En Linux/Mac
-      const lsof = spawn('lsof', ['-ti', `:${port}`], { stdio: 'pipe' });
-      let pids = '';
-      
-      lsof.stdout.on('data', (data) => {
-        pids += data.toString();
-      });
-      
-      lsof.on('close', () => {
-        if (pids.trim()) {
-          const pidList = pids.trim().split('\n');
-          pidList.forEach(pid => {
-            spawn('kill', ['-9', pid], { stdio: 'ignore' });
-          });
-          console.log(`   ✅ ${name} detenido`);
-        } else {
-          console.log(`   ℹ️  ${name} no estaba ejecutándose`);
-        }
-        resolve();
-      });
-    }
-  });
-}
-
-/**
- * Detiene todos los tunnels de Cloudflare
- */
-function killCloudflaredTunnels() {
-  return new Promise((resolve) => {
-    console.log('🌐 Deteniendo tunnels de Cloudflare...');
-    
-    if (process.platform === 'win32') {
-      const kill = spawn('taskkill', ['/F', '/IM', 'cloudflared.exe'], { stdio: 'ignore' });
-      kill.on('close', () => {
-        console.log('   ✅ Todos los tunnels de Cloudflare detenidos');
-        resolve();
-      });
-    } else {
-      spawn('pkill', ['-f', 'cloudflared'], { stdio: 'ignore' });
-      setTimeout(() => {
-        console.log('   ✅ Todos los tunnels de Cloudflare detenidos');
-        resolve();
-      }, 1000);
-    }
-  });
-}
-
-/**
- * Limpia archivos temporales de producción
- */
-function cleanupProdFiles() {
-  console.log('🧹 Limpiando archivos temporales...');
-  
-  // Limpiar logs de tunnels
-  const tunnelLogsDir = path.join(rootDir, 'tunnel-logs');
-  if (fs.existsSync(tunnelLogsDir)) {
-    try {
-      fs.rmSync(tunnelLogsDir, { recursive: true, force: true });
-      console.log('   ✅ Logs de tunnels eliminados');
-    } catch (error) {
-      console.log('   ⚠️  No se pudieron eliminar algunos logs');
+  log(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    switch (type) {
+      case 'success':
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.green(message)}`);
+        break;
+      case 'error':
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.red(message)}`);
+        break;
+      case 'warning':
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.yellow(message)}`);
+        break;
+      default:
+        console.log(`${chalk.gray(`[${timestamp}]`)} ${chalk.blue(message)}`);
     }
   }
-  
-  // Limpiar archivos temporales
-  const tempFiles = [
-    'tunnel-urls.txt',
-    'local-ip-output.txt'
-  ];
-  
-  tempFiles.forEach(file => {
-    const filePath = path.join(rootDir, file);
-    if (fs.existsSync(filePath)) {
-      try {
-        fs.unlinkSync(filePath);
-      } catch (error) {
-        // Ignorar errores de archivos temporales
+
+  async killProcessByName(processName, windowTitle = null) {
+    try {
+      // ⚠️ PROTECCIÓN: Nunca matar procesos de Claude Code
+      if (processName === 'node.exe') {
+        // En lugar de matar TODOS los node.exe, buscar por puerto específico
+        return await this.killSpecificNodeProcesses();
+      }
+      
+      let command;
+      if (windowTitle) {
+        command = `taskkill /f /im ${processName} /fi "WINDOWTITLE eq ${windowTitle}*"`;
+      } else {
+        command = `taskkill /f /im ${processName}`;
+      }
+      
+      execSync(command, { stdio: 'pipe' });
+      this.killedProcesses.push(processName);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async killSpecificNodeProcesses() {
+    // Matar solo procesos Node.js en puertos específicos de producción
+    const prodPorts = [6001, 4173, 4174];
+    let killedAny = false;
+    
+    for (const port of prodPorts) {
+      if (await this.killProcessByPort(port)) {
+        killedAny = true;
       }
     }
-  });
-  
-  console.log('   ✅ Archivos temporales limpiados');
-}
+    
+    return killedAny;
+  }
 
-async function main() {
-  try {
-    // 1. Detener tunnels de Cloudflare primero
-    await killCloudflaredTunnels();
-    
-    // 2. Detener servicios por puerto
-    await Promise.all([
-      killProcessByPort(6001, 'Backend'),
-      killProcessByPort(4000, 'Admin Frontend'), 
-      killProcessByPort(4001, 'Viewer Frontend')
-    ]);
-    
-    // 3. Matar procesos npm restantes
-    console.log('\n🔧 Limpiando procesos npm...');
-    
-    if (process.platform === 'win32') {
-      spawn('taskkill', ['/F', '/IM', 'npm.exe'], { stdio: 'ignore' });
-      spawn('taskkill', ['/F', '/IM', 'node.exe', '/FI', 'WINDOWTITLE eq *streaming*'], { stdio: 'ignore' });
-    } else {
-      spawn('pkill', ['-f', 'npm.*streaming'], { stdio: 'ignore' });
+  async killProcessByPort(port) {
+    try {
+      const netstatOutput = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf8' });
+      const lines = netstatOutput.split('\n');
+      
+      for (const line of lines) {
+        const match = line.match(/\s+(\d+)\s*$/);
+        if (match) {
+          const pid = match[1];
+          try {
+            execSync(`taskkill /f /pid ${pid}`, { stdio: 'pipe' });
+            this.log(`🔪 Proceso en puerto ${port} terminado (PID: ${pid})`);
+            return true;
+          } catch {
+            // PID ya terminado
+          }
+        }
+      }
+      return false;
+    } catch {
+      return false;
     }
+  }
+
+  async stopCloudflared() {
+    const spinner = ora('🔪 Cerrando túneles Cloudflare...').start();
     
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    const killed = await this.killProcessByName('cloudflared.exe');
     
-    // 4. Limpiar archivos temporales
-    cleanupProdFiles();
+    if (killed) {
+      spinner.succeed('✅ Túneles Cloudflare cerrados');
+    } else {
+      spinner.warn('⚠️ No se encontraron túneles Cloudflare activos');
+    }
+  }
+
+  async stopNgrok() {
+    const spinner = ora('🔪 Cerrando túneles ngrok...').start();
     
-    console.log('\n✅ PRODUCCIÓN - Sistema detenido correctamente!');
-    console.log('🌐 Todos los tunnels de Cloudflare cerrados');
-    console.log('🔍 Puertos liberados: 6001, 4000, 4001');  
-    console.log('🔧 Procesos npm terminados');
-    console.log('🧹 Archivos temporales limpiados');
-    console.log('💡 Todas las URLs de tunnel son ahora inválidas');
-    console.log('🚀 Para reiniciar: npm run prod');
-    console.log('=' .repeat(58));
+    const killed = await this.killProcessByName('ngrok.exe');
     
-  } catch (error) {
-    console.error('❌ Error deteniendo producción:', error.message);
-    process.exit(1);
+    if (killed) {
+      spinner.succeed('✅ Túneles ngrok cerrados');
+    } else {
+      spinner.warn('⚠️ No se encontraron túneles ngrok activos');
+    }
+  }
+
+  async stopNodeProcesses() {
+    const spinner = ora('🔪 Cerrando procesos Node.js de producción (protegiendo Claude Code)...').start();
+    
+    // Solo matar procesos por puerto específico, NUNCA por nombre node.exe
+    const killed = await this.killSpecificNodeProcesses();
+
+    if (killed) {
+      spinner.succeed('✅ Procesos Node.js de producción cerrados (Claude Code protegido)');
+    } else {
+      spinner.warn('⚠️ No se encontraron procesos Node.js específicos de producción en puertos objetivo');
+    }
+  }
+
+  async stopLiveKit() {
+    const spinner = ora('🔪 Cerrando LiveKit Server...').start();
+    
+    const killed = await this.killProcessByName('livekit-server.exe');
+    
+    if (killed) {
+      spinner.succeed('✅ LiveKit Server cerrado');
+    } else {
+      spinner.warn('⚠️ LiveKit Server no estaba ejecutándose');
+    }
+  }
+
+  async stopRedis() {
+    const spinner = ora('🔪 Deteniendo Redis...').start();
+    
+    try {
+      execSync('docker-compose down', {
+        cwd: path.join(__dirname, '..', 'streaming-docker'),
+        stdio: 'pipe'
+      });
+      spinner.succeed('✅ Redis detenido');
+    } catch (error) {
+      spinner.warn('⚠️ Redis ya estaba detenido o no se pudo detener');
+    }
+  }
+
+  async cleanupTempFiles() {
+    const spinner = ora('🧹 Limpiando archivos temporales...').start();
+    
+    const logFiles = ['backend-tunnel.log', 'livekit-ngrok.log', 'admin-tunnel.log', 'viewer-tunnel.log'];
+    let filesDeleted = 0;
+
+    logFiles.forEach(file => {
+      const filePath = path.join(__dirname, file);
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+          filesDeleted++;
+        } catch (error) {
+          this.log(`⚠️ No se pudo eliminar ${file}`, 'warning');
+        }
+      }
+    });
+
+    if (filesDeleted > 0) {
+      spinner.succeed(`✅ ${filesDeleted} archivos temporales eliminados`);
+    } else {
+      spinner.succeed('✅ No hay archivos temporales para limpiar');
+    }
+  }
+
+  async killProductionPorts() {
+    const prodPorts = [6001, 4173, 4174, 7880];
+    let portProcessesKilled = 0;
+    
+    this.log('🔍 Verificando puertos de producción...');
+    
+    for (const port of prodPorts) {
+      if (await this.killProcessByPort(port)) {
+        portProcessesKilled++;
+      }
+    }
+
+    if (portProcessesKilled > 0) {
+      this.log(`🔪 ${portProcessesKilled} procesos adicionales cerrados por puerto`);
+    }
+  }
+
+  async stop() {
+    console.log(chalk.red.bold('🛑 Deteniendo Modo Producción'));
+    console.log('='.repeat(40) + '\n');
+
+    // Detener servicios en orden
+    await this.stopCloudflared();
+    await this.stopNgrok();
+    await this.stopNodeProcesses();
+    await this.stopLiveKit();
+    await this.stopRedis();
+    
+    // Matar procesos por puerto como respaldo
+    await this.killProductionPorts();
+    
+    // Limpiar archivos temporales
+    await this.cleanupTempFiles();
+
+    console.log('\n' + '='.repeat(60));
+    console.log(chalk.green.bold('✅ Todos los servicios de producción han sido detenidos'));
+    console.log('='.repeat(60) + '\n');
+
+    if (this.killedProcesses.length > 0) {
+      this.log(`Procesos terminados: ${this.killedProcesses.join(', ')}`, 'success');
+    }
+
+    this.log('Sistema de producción limpio y listo para reiniciar', 'success');
   }
 }
 
-main();
+// Ejecutar si es llamado directamente
+if (process.argv[1] === __filename) {
+  const stopper = new ProdStopper();
+  
+  stopper.stop().then(() => {
+    process.exit(0);
+  }).catch((error) => {
+    console.error(chalk.red(`❌ Error deteniendo servicios: ${error.message}`));
+    process.exit(1);
+  });
+}
+
+export { ProdStopper };

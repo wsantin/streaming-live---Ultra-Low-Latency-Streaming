@@ -5,13 +5,19 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/start-dev.js",
-    "prod": "node scripts/start-prod.js",
-    "stop": "node scripts/stop-all.js",
+    "dev": "node scripts/start-dev.js", 
+    "dev:bat": "scripts\\start-dev.bat",
     "stop:dev": "node scripts/stop-dev.js",
+    "stop:dev:bat": "scripts\\stop-dev.bat",
+    "prod": "node scripts/start-prod.js",
+    "prod:bat": "scripts\\start-prod.bat",
     "stop:prod": "node scripts/stop-prod.js",
+    "stop:prod:bat": "scripts\\stop-prod.bat",
     "ip": "node scripts/detect-ip.js",
-    "tunnel": "node scripts/create-tunnels.js"
+    "ip:bat": "scripts\\detect-local-ip.bat",
+    "check-livekit": "node scripts/check-livekit.js",
+    "check-livekit:bat": "scripts\\check-livekit.bat",
+    "validate-env": "node scripts/validate-env.js"
   },
   "keywords": [
     "webrtc",
@@ -21,8 +27,10 @@
     "cloudflare-tunnel"
   ],
   "dependencies": {
-    "cross-spawn": "^7.0.3",
     "chalk": "^5.3.0",
+    "cross-spawn": "^7.0.3",
+    "livekit-client": "^2.15.6",
+    "node-fetch": "^3.3.2",
     "ora": "^8.0.1"
   },
   "devDependencies": {

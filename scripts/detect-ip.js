@@ -1,119 +1,129 @@
-// Script para detectar IP local automáticamente
+#!/usr/bin/env node
+
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-/**
- * Detecta la IP local de la red activa
- * @returns {string} IP local detectada
- */
-export function detectLocalIP() {
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Función para obtener la IP local correcta
+export function getLocalIP() {
   const interfaces = os.networkInterfaces();
+  const allIPs = [];
   
-  // Intentar encontrar IP de WiFi o Ethernet primero
-  const preferredInterfaces = ['Wi-Fi', 'Ethernet', 'wlan0', 'eth0'];
+  console.log('🔍 Detectando IP local...\n');
+  console.log('📋 IPs encontradas:');
   
-  for (const interfaceName of preferredInterfaces) {
-    if (interfaces[interfaceName]) {
-      for (const iface of interfaces[interfaceName]) {
-        if (iface.family === 'IPv4' && !iface.internal) {
-          console.log(`🌐 IP detectada en ${interfaceName}: ${iface.address}`);
-          return iface.address;
-        }
-      }
-    }
-  }
-  
-  // Fallback: buscar cualquier interfaz IPv4 no internal
+  // Recopilar todas las IPs
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
       if (iface.family === 'IPv4' && !iface.internal) {
-        console.log(`🌐 IP detectada en ${name}: ${iface.address}`);
-        return iface.address;
+        console.log(`   ${name}: ${iface.address}`);
+        allIPs.push({
+          name: name,
+          address: iface.address,
+          priority: getIPPriority(iface.address)
+        });
       }
     }
   }
   
-  // Último fallback
-  console.log('⚠️  No se pudo detectar IP, usando fallback: 192.168.1.37');
-  return '192.168.1.37';
+  console.log();
+  
+  // Ordenar por prioridad y seleccionar la mejor
+  allIPs.sort((a, b) => b.priority - a.priority);
+  
+  if (allIPs.length > 0) {
+    const selectedIP = allIPs[0].address;
+    console.log(`🎯 IP seleccionada: ${selectedIP}`);
+    return selectedIP;
+  }
+  
+  console.log('❌ No se pudo detectar IP local, usando localhost');
+  return 'localhost';
 }
 
-/**
- * Actualiza archivo .env con nuevas variables
- * @param {string} filePath - Ruta del archivo .env
- * @param {Object} updates - Variables a actualizar
- */
+// Función para priorizar IPs
+export function getIPPriority(ip) {
+  if (ip.startsWith('192.168.1.')) return 100;  // WiFi común (máxima prioridad)
+  if (ip.startsWith('192.168.0.')) return 90;   // Router alternativo
+  if (ip.startsWith('192.168.')) return 80;      // Otra red local
+  if (ip.startsWith('10.')) return 70;           // Red corporativa
+  if (ip.startsWith('172.')) return 60;          // Docker/VM
+  return 50;                                      // Otras
+}
+
+// Función para actualizar archivos .env
 export function updateEnvFile(filePath, updates) {
-  try {
-    if (!fs.existsSync(filePath)) {
-      console.log(`⚠️  Archivo no encontrado: ${filePath}`);
-      return false;
-    }
-    
-    let content = fs.readFileSync(filePath, 'utf8');
-    
-    // Actualizar cada variable
-    Object.entries(updates).forEach(([key, value]) => {
-      const regex = new RegExp(`^${key}=.*$`, 'm');
-      if (content.match(regex)) {
-        content = content.replace(regex, `${key}=${value}`);
-      } else {
-        // Si no existe, agregarlo al final
-        content += `\n${key}=${value}`;
-      }
-    });
-    
-    fs.writeFileSync(filePath, content);
-    console.log(`✅ Actualizado: ${filePath}`);
-    return true;
-  } catch (error) {
-    console.error(`❌ Error actualizando ${filePath}:`, error.message);
-    return false;
+  let content = '';
+  
+  // Leer archivo existente si existe
+  if (fs.existsSync(filePath)) {
+    content = fs.readFileSync(filePath, 'utf8');
   }
+  
+  // Actualizar o agregar cada variable
+  for (const [key, value] of Object.entries(updates)) {
+    const regex = new RegExp(`^${key}=.*$`, 'gm');
+    const newLine = `${key}=${value}`;
+    
+    if (regex.test(content)) {
+      content = content.replace(regex, newLine);
+    } else {
+      content += (content && !content.endsWith('\n') ? '\n' : '') + newLine + '\n';
+    }
+  }
+  
+  // Escribir archivo actualizado
+  fs.writeFileSync(filePath, content);
+  console.log(`✅ Actualizado: ${path.basename(filePath)}`);
 }
 
-/**
- * Actualiza vite.config.js con allowedHosts dinámico
- * @param {string} viteConfigPath - Ruta del vite.config.js
- * @param {string} localIP - IP local detectada
- */
-export function updateViteAllowedHosts(viteConfigPath, localIP) {
-  try {
-    if (!fs.existsSync(viteConfigPath)) {
-      console.log(`⚠️  Vite config no encontrado: ${viteConfigPath}`);
-      return false;
-    }
-    
-    let content = fs.readFileSync(viteConfigPath, 'utf8');
-    
-    // Buscar y reemplazar allowedHosts
-    const allowedHostsRegex = /allowedHosts:\s*\[(.*?)\]/s;
-    const newAllowedHosts = `allowedHosts: ['localhost', '${localIP}', '.trycloudflare.com']`;
-    
-    if (content.match(allowedHostsRegex)) {
-      content = content.replace(allowedHostsRegex, newAllowedHosts);
-    } else {
-      // Si no existe allowedHosts, agregarlo al server config
-      const serverRegex = /server:\s*{([^}]*)}/s;
-      if (content.match(serverRegex)) {
-        content = content.replace(serverRegex, (match, serverContent) => {
-          return `server: {${serverContent.trim()},\n      ${newAllowedHosts}\n    }`;
-        });
-      }
-    }
-    
-    fs.writeFileSync(viteConfigPath, content);
-    console.log(`✅ Vite allowedHosts actualizado: ${viteConfigPath}`);
-    return true;
-  } catch (error) {
-    console.error(`❌ Error actualizando ${viteConfigPath}:`, error.message);
-    return false;
-  }
+// Main
+export function main() {
+  const localIP = getLocalIP();
+  
+  console.log('\n📊 Configurando archivos .env...\n');
+  
+  // Actualizar backend .env.development
+  const backendEnvPath = path.join(__dirname, '..', 'backend-local', '.env.development');
+  updateEnvFile(backendEnvPath, {
+    'SERVER_HOST': localIP,
+    'REDIS_HOST': 'localhost', // Redis siempre local
+    'LIVEKIT_HOST': `ws://${localIP}:7880`
+  });
+  
+  // Actualizar frontend-admin .env.development
+  const adminEnvPath = path.join(__dirname, '..', 'frontend-admin', '.env.development');
+  updateEnvFile(adminEnvPath, {
+    'VITE_API_URL': `http://${localIP}:5001`,
+    'VITE_LIVEKIT_URL': `ws://${localIP}:7880`,
+    'VITE_VIEWER_URL': `http://${localIP}:3001`
+  });
+  
+  // Actualizar frontend-viewer .env.development
+  const viewerEnvPath = path.join(__dirname, '..', 'frontend-viewer', '.env.development');
+  updateEnvFile(viewerEnvPath, {
+    'VITE_API_URL': `http://${localIP}:5001`,
+    'VITE_LIVEKIT_URL': `ws://${localIP}:7880`
+  });
+  
+  console.log('\n✅ Todos los archivos .env actualizados con IP:', localIP);
+  
+  // Guardar IP para otros scripts
+  const ipInfo = {
+    localIP: localIP,
+    timestamp: new Date().toISOString()
+  };
+  fs.writeFileSync(path.join(__dirname, 'current-ip.json'), JSON.stringify(ipInfo, null, 2));
+  
+  return localIP;
 }
 
 // Ejecutar si es llamado directamente
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const ip = detectLocalIP();
-  console.log(`\n🌐 IP Local Detectada: ${ip}\n`);
+if (process.argv[1] === __filename) {
+  const ipConfig = main();
+  console.log('\n🎯 IP detectada y archivos .env actualizados correctamente\n');
 }

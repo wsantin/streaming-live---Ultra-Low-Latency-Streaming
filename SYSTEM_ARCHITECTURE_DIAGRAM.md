@@ -15,7 +15,7 @@ graph TB
     end
     
     subgraph "🚀 Infraestructura Nativa/Docker"
-        L[🎥 LiveKit Server Nativo<br/>Puerto 7880 (WS) + 7881 (TCP)<br/>./livekit-native/livekit-server.exe]
+        L[🎥 LiveKit VPS Server<br/>IP: 5.78.143.204 (WSS)<br/>Profesional con SSL/TURN]
         R[🗄️ Redis Docker<br/>Puerto 6379<br/>Session Storage + Cache]
     end
     
@@ -45,8 +45,8 @@ graph TB
 1. **Frontend Admin** → Control de streaming (crear/detener salas)
 2. **Frontend Viewer** → Visualización de streams 
 3. **Backend API** → Coordinación Socket.IO + LiveKit integration
-4. **LiveKit Nativo** → Motor de streaming WebRTC
-5. **Redis Docker** → Cache y sessions
+4. **LiveKit VPS** → Motor de streaming WebRTC profesional
+5. **Redis Local** → Cache y sessions locales
 
 ### 🗂️ **Estado Global Simplificado**
 ```javascript
@@ -230,9 +230,9 @@ server-streaming/
 │   ├── server.js               # Limpio: 767 líneas
 │   ├── config/constants.js     # CORS dinámico
 │   └── livekit-integration.js  # LiveKit manager
-├── livekit-native/             # 🎥 Ejecutable nativo
-│   ├── livekit-server.exe      
-│   └── livekit-native-config.yaml
+├── vps-installer/              # 🎥 Scripts VPS
+│   ├── 1-install-services.sh
+│   └── 2-install-livekit.sh
 └── streaming-docker/           # 🗄️ Solo Redis
     └── docker-compose.yml      # Solo Redis service
 ```

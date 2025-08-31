@@ -28,21 +28,34 @@ cd ../frontend-viewer && npm install
 
 ### 2. Iniciar Sistema
 
-**Comandos Simplificados (.bat):**
-```bash
-# Desarrollo - Inicia todo automáticamente
-./dev.bat
+**Sistema Unificado con un solo archivo .env por componente:**
 
-# Detener todo
-./stop-dev.bat
+```bash
+# Desarrollo local - Detección automática de IP
+npm run dev
+
+# Producción con túneles públicos
+npm run prod
+
+# Detener servicios
+npm run stop:dev  # Desarrollo
+npm run stop:prod # Producción
 ```
 
-**Esto automáticamente:**
+**Modo desarrollo (npm run dev):**
+- ✅ Detecta y actualiza IP local en archivos .env
 - ✅ Inicia Redis (Docker)
-- ✅ Inicia LiveKit SFU nativo (livekit-server.exe puerto 7880)
+- ✅ Conecta con LiveKit VPS (wss://5.78.143.204)
 - ✅ Inicia API backend (puerto 5001)  
 - ✅ Inicia frontend admin (puerto 3000)
 - ✅ Inicia frontend viewer (puerto 3001)
+
+**Modo producción (npm run prod):**
+- ✅ Ejecuta servicios de desarrollo
+- 🌐 Crea túneles Cloudflare para backend y frontends
+- 🚀 Utiliza LiveKit VPS profesional (5.78.143.204)
+- 📝 Actualiza archivos .env con URLs de túneles
+- 🌍 Acceso público desde cualquier lugar
 
 ### 3. Acceder al Sistema
 
@@ -50,12 +63,13 @@ cd ../frontend-viewer && npm install
 - **👨‍💼 Admin Panel**: http://localhost:3000 (Streamer/Creador)
 - **👁️ Viewer Panel**: http://localhost:3001 (Espectador)  
 - **🔧 Backend API**: http://localhost:5001 (API REST)
-- **📡 LiveKit SFU**: ws://localhost:7880 (Servidor WebRTC)
+- **📡 LiveKit VPS**: wss://5.78.143.204 (Servidor WebRTC)
 
-**📱 PRODUCCIÓN (Streaming Móvil):**
+**📱 PRODUCCIÓN (Acceso Público):**
 ```bash
 npm run prod
-# Crea túneles de Cloudflare automáticamente
+# Ejecuta servicios de desarrollo + crea túneles automáticamente
+# Cloudflare para frontends/backend, ngrok para LiveKit WebRTC
 ```
 
 ---
@@ -74,17 +88,24 @@ npm run prod
 
 ## 📱 **Streaming Móvil (Túneles HTTPS)**
 
-### Configuración Rápida Móvil
+### Configuración Unificada
 ```bash
-# Configuración de producción con scripts Node.js
-npm run prod
-
-# Configuración de desarrollo con LiveKit
+# Desarrollo local
 npm run dev
 
-# Detener todos los servicios
-npm run stop
+# Producción con túneles públicos
+npm run prod
+
+# Detener servicios
+npm run stop:dev  # Detener desarrollo
+npm run stop:prod # Detener producción
 ```
+
+**Características del sistema unificado:**
+- 📄 Un solo archivo .env por componente
+- 🔄 Mismos comandos dev para desarrollo y producción
+- 🌐 Modo producción agrega túneles automáticamente
+- 🔍 Detección automática de IP local
 
 Características móviles:
 - Detección automática de HTTPS
@@ -98,7 +119,7 @@ Características móviles:
 ## 🏗️ **Arquitectura**
 
 ```
-┌─────────────┐      LiveKit SFU         ┌─────────────┐
+┌─────────────┐      LiveKit VPS         ┌─────────────┐
 │  Streamer   │ ────────────────────────► │   Viewer    │
 │  (Browser)  │                           │  (Browser)  │
 └─────────────┘                           └─────────────┘
@@ -106,12 +127,11 @@ Características móviles:
        └──────────────┐    ┌────────────────────┘
                       ▼    ▼
             ┌─────────────────────────┐
-            │  LiveKit SFU Server     │
-            │  - Docker Container     │
-            │  - Port: 7880 (HTTP)    │
-            │  - Port: 7881 (TCP)     │  
-            │  - Port: 50000-60000    │
-            │  - Redis: 6379          │
+            │  LiveKit VPS Server     │
+            │  - IP: 5.78.143.204     │
+            │  - WSS: 443 (HTTPS)     │
+            │  - WebRTC: 50000-60000  │  
+            │  - Redis + TURN + Nginx │
             └─────────────────────────┘
 ```
 
@@ -145,11 +165,12 @@ server-streaming/
 │   ├── livekit-integration.js        # Gestor SFU LiveKit (1000+ espectadores)
 │   ├── generate-cert.js              # Generador de certificados SSL
 │   └── config/constants.js          # Configuración del servidor con LiveKit
-├── livekit-native/                   # LiveKit Server Nativo
-│   └── livekit-server.exe           # Ejecutable nativo LiveKit SFU
-├── livekit-native-config.yaml        # Configuración LiveKit nativo
-├── streaming-docker/                 # Solo Redis Docker
-│   └── docker-compose.yml           # Solo Redis para cache/sessions
+├── vps-installer/                    # Scripts de instalación VPS
+│   ├── 1-install-services.sh        # Instalador servicios base VPS
+│   ├── 2-install-livekit.sh          # Instalador LiveKit Server VPS
+│   └── README.md                     # Guía de instalación VPS
+├── streaming-docker/                 # Solo Redis Docker local
+│   └── docker-compose.yml           # Solo Redis para cache/sessions locales
 ├── frontend-admin/                   # Interfaz del streamer
 │   └── src/components/
 │       └── StreamingAdmin.jsx       # Interfaz de streaming LiveKit
@@ -166,10 +187,10 @@ server-streaming/
 **Frontend**: React 18, LiveKit Client SDK, Socket.IO Client
 **Backend**: Node.js, Express, LiveKit Server SDK, Socket.IO
 **Streaming**: 
-- **🚀 LiveKit SFU Nativo**: Ejecutable nativo, Códecs VP9/VP8/H.264, Audio Opus, Simulcast (20-50ms, 1000+ espectadores)
-- **Redis Docker**: Cache y sessions distribuidas
-- **Configuración YAML**: Configuración nativa optimizada
-**Infraestructura**: Redis Docker, LiveKit Nativo, .bat scripts
+- **🚀 LiveKit VPS Profesional**: Servidor dedicado 5.78.143.204, Códecs VP9/VP8/H.264, Audio Opus, Simulcast (20-50ms, 1000+ espectadores)
+- **Redis VPS**: Cache distribuido en servidor dedicado
+- **SSL/WSS**: Certificados SSL profesionales con Nginx
+**Infraestructura**: VPS dedicado, Redis VPS, TURN Server, .bat scripts locales
 **Control**: Scripts .bat para inicio/parada de servicios
 
 ## 📊 **Especificaciones de Rendimiento**
@@ -222,20 +243,24 @@ GET  /api/network/local-ip                       // Obtener IP local detectada
 // ¡Conexión SFU de ultra baja latencia!
 ```
 
-## 🚀 **Despliegue en Producción**
+## 🌍 **VPS LiveKit Profesional**
 
-### Requisitos
-- Docker y Docker Compose
-- Node.js 18+
-- HTTPS/WSS (requisito de WebRTC)
-- Balanceador de carga (para escalado)
-- Redis (gestión de sesiones)
+### 🚀 **Servidor VPS Actual (Funcionando)**
+- **IP**: 5.78.143.204
+- **URL**: wss://5.78.143.204
+- **Credenciales**:
+  - API Key: `APIwTqW8EBDZ3nk`
+  - API Secret: `4gRkQFcWqxNzYGmkfmPzHN8dXL5V2KbJTsAd7FBwhPeM`
 
-### Infraestructura Recomendada
-- **Servidor LiveKit**: Contenedor Docker
-- **Redis**: Contenedor Docker o AWS ElastiCache
-- **Balanceador de Carga**: Nginx o AWS ALB
-- **SSL**: Let's Encrypt o Cloudflare
+### 🛠️ **Infraestructura VPS (Instalada)**
+- **LiveKit Server**: v1.9.0 con SSL/WSS
+- **Redis VPS**: Cache distribuido
+- **TURN Server**: Para conexiones globales
+- **Nginx Proxy**: SSL termination
+- **Certificados SSL**: Válidos y renovables
+
+### 📁 **Scripts de Instalación**
+Ver carpeta `vps-installer/` para scripts de instalación en nuevos servidores.
 
 ## 🛠️ **Comandos de Desarrollo**
 
@@ -258,19 +283,19 @@ En su lugar, usa comandos específicos o excluye los procesos de Claude Code.
 ./stop.bat
 ```
 
-### 🚀 **Servidor LiveKit SFU (Nativo)**:
+### 🚀 **Servidor LiveKit VPS**:
 ```bash
-# Iniciar solo Redis (se inicia automáticamente con dev.bat)
+# Iniciar solo Redis local (se inicia automáticamente con dev.bat)
 cd streaming-docker && docker-compose up -d
 
-# LiveKit se ejecuta nativo con:
-./livekit-native/livekit-server.exe --config=livekit-native-config.yaml
+# LiveKit VPS está siempre disponible en:
+# wss://5.78.143.204 (SSL/WSS automático)
 
-# Ver logs de Redis
+# Ver logs de Redis local
 cd streaming-docker && docker-compose logs -f redis
 
-# Verificar estado del servidor
-curl http://localhost:7880
+# Verificar estado del servidor VPS
+curl https://5.78.143.204/
 curl http://localhost:5001/api/livekit/health
 ```
 
@@ -294,8 +319,8 @@ cd frontend-viewer && npm install
 
 ### 🔍 **Verificaciones de Salud**:
 ```bash
-# Servidor LiveKit SFU
-curl http://localhost:7880
+# Servidor LiveKit VPS
+curl https://5.78.143.204/
 curl http://localhost:5001/api/livekit/health
 
 # Entorno local
@@ -314,9 +339,11 @@ https://[tunel-visor].trycloudflare.com?debug=true
 
 ## 📚 **Documentación**
 
-- [LIVEKIT_CONFIGURATION_DOCS.md](./LIVEKIT_CONFIGURATION_DOCS.md) - Configuración Docker de LiveKit
+- [LIVEKIT_CONFIGURATION_DOCS.md](./LIVEKIT_CONFIGURATION_DOCS.md) - Configuración VPS de LiveKit
 - [PROFESSIONAL_STREAMING_DOCS.md](./PROFESSIONAL_STREAMING_DOCS.md) - Documentación técnica
-- [ENVIRONMENT_SETUP.md](./ENVIRONMENT_SETUP.md) - Guía de configuración del entorno
+- [VPS_PRODUCTION_GUIDE.md](./VPS_PRODUCTION_GUIDE.md) - Guía de producción VPS
+- [HETZNER_DEPLOYMENT_GUIDE.md](./HETZNER_DEPLOYMENT_GUIDE.md) - Despliegue en Hetzner
+- [vps-installer/README.md](./vps-installer/README.md) - Instalación LiveKit VPS
 
 ## 🔒 **Características de Seguridad**
 

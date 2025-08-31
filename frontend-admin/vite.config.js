@@ -19,14 +19,12 @@ function getLocalIP() {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   // Cargar variables de entorno específicas del modo
-  const env = loadEnv(mode, process.cwd(), '')
   const localIP = getLocalIP()
   
   return {
     plugins: [react()],
     server: {
       host: '0.0.0.0', // Permitir conexiones desde cualquier IP
-      port: parseInt(env.VITE_PORT) || (mode === 'production' ? 4000 : 3000),
       strictPort: true, // Fallar si el puerto está ocupado, no buscar otro
       allowedHosts: [
         'localhost',           // localhost
@@ -36,7 +34,6 @@ export default defineConfig(({ mode }) => {
     },
     preview: {
       host: '0.0.0.0', // Permitir conexiones desde cualquier IP en preview
-      port: parseInt(env.VITE_PORT) || (mode === 'production' ? 4000 : 3000),
       strictPort: true, // Fallar si el puerto está ocupado, no buscar otro
       allowedHosts: [
         'localhost',           // localhost

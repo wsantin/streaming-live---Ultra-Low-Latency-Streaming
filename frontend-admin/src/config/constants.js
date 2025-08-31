@@ -1,13 +1,26 @@
 // Frontend Admin Configuration Constants
 // ========================================
 
+// LiveKit VPS Configuration
+export const LIVEKIT_URL = 'wss://5.78.143.204'
+export const LIVEKIT_API_KEY = 'APIwTqW8EBDZ3nk'
+export const LIVEKIT_API_SECRET = '4gRkQFcWqxNzYGmkfmPzHN8dXL5V2KbJTsAd7FBwhPeM'
+
+// TURN Server VPS Configuration
+export const TURN_CONFIG = {
+  host: '5.78.143.204',
+  port: 3478,
+  username: 'livekit',
+  credential: 'TurnServer2025SecretKey789'
+}
+
 // URLs principales
 export const API_URL = import.meta.env.VITE_API_URL
-export const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL
-export const VIEWER_URL = import.meta.env.VITE_VIEWER_URL
 
 export default {
   API_URL,
   LIVEKIT_URL,
-  VIEWER_URL
+  LIVEKIT_API_KEY,
+  LIVEKIT_API_SECRET,
+  TURN_CONFIG
 };

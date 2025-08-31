@@ -68,7 +68,7 @@ server-streaming/
 ├── frontend-admin/        # Interfaz de control de streaming
 ├── frontend-viewer/       # Interfaz de visualización
 ├── backend-local/         # API y Socket.IO
-├── livekit-native/        # Motor de streaming
+├── vps-installer/         # Scripts de instalación VPS
 └── streaming-docker/      # Redis (solo)
 ```
 
@@ -90,7 +90,7 @@ El sistema detecta automáticamente tu IP local y configura:
 ### Obligatorios
 - **Node.js** 18+
 - **Docker** (para Redis)
-- **LiveKit Server** (ejecutable en `/livekit-native/`)
+- **LiveKit VPS** (servidor dedicado en 5.78.143.204)
 
 ### Verificación
 ```bash
@@ -105,9 +105,9 @@ npm run ip
 
 ## 🐛 Solución de Problemas
 
-### ❌ "No encuentra LiveKit Server"
-- Asegurate de tener `livekit-server.exe` en `/livekit-native/`
-- Descarga desde: https://github.com/livekit/livekit/releases
+### ❌ "No conecta con LiveKit VPS"
+- Verificar conexión a Internet
+- LiveKit VPS siempre disponible en: wss://5.78.143.204
 
 ### ❌ "Redis no se conecta"
 - Verificar que Docker esté ejecutándose
@@ -139,7 +139,7 @@ npm run ip
 
 - **Resolución**: Hasta 1080p@30fps
 - **Codec**: VP8/VP9 (WebRTC optimizado)
-- **Latencia**: 20-50ms (LiveKit nativo)
+- **Latencia**: 20-50ms (LiveKit VPS profesional)
 - **Bandwidth**: Adaptativo según conexión
 - **Concurrencia**: 1000+ espectadores simultáneos
 

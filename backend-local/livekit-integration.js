@@ -1,32 +1,80 @@
-const { RoomServiceClient, AccessToken, Room } = require('livekit-server-sdk');
+const { RoomServiceClient, AccessToken } = require('livekit-server-sdk');
 const { SERVER_CONFIG } = require('./config/constants');
+const LiveKitErrorHandler = require('./utils/errorHandler');
 
+/**
+ * LiveKit VPS Integration Manager
+ * Handles all LiveKit server operations for streaming
+ */
 class LiveKitManager {
     constructor() {
-        // Configuración LiveKit desde constants.js
         this.livekitHost = SERVER_CONFIG.LIVEKIT.HOST;
         this.apiKey = SERVER_CONFIG.LIVEKIT.API_KEY;
         this.apiSecret = SERVER_CONFIG.LIVEKIT.SECRET;
         
-        // Cliente para administración de salas (necesita HTTP, no WS)
-        const httpUrl = this.livekitHost.replace('ws://', 'http://').replace('wss://', 'https://');
+        // Initialize error handler and monitoring
+        this.errorHandler = new LiveKitErrorHandler();
+        
+        // Configure SSL handling for VPS
+        this._configureSSL();
+        
+        // Initialize room service client
+        const httpUrl = this._getHttpUrl();
         this.roomService = new RoomServiceClient(httpUrl, this.apiKey, this.apiSecret);
         
-        // Cache de salas activas
+        // Active rooms cache
         this.activeRooms = new Map();
         
-        console.log('🎯 LiveKit Manager initialized:', {
+        console.log('🚀 LiveKit Manager initialized:', {
             host: this.livekitHost,
             apiKey: this.apiKey
         });
     }
 
-    // Generar token de acceso para participante
-    async generateAccessToken(roomName, participantName, isPublisher = true) {
+    /**
+     * Configure SSL handling based on environment
+     * @private
+     */
+    _configureSSL() {
+        const isVPS = this.livekitHost.includes('5.78.143.204');
+        const isProd = process.env.NODE_ENV === 'production';
+        
+        if (isVPS || isProd) {
+            process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+            console.log('🔒 SSL verification disabled for VPS LiveKit');
+        }
+    }
+
+    /**
+     * Convert WebSocket URL to HTTP URL
+     * @private
+     * @returns {string} HTTP URL
+     */
+    _getHttpUrl() {
+        return this.livekitHost.replace('ws://', 'http://').replace('wss://', 'https://');
+    }
+
+    /**
+     * Generate access token for participant
+     * @param {string} roomName - Room name
+     * @param {string} participantName - Participant identity
+     * @param {boolean} isPublisher - Can publish streams
+     * @param {number} ttlMinutes - Token TTL in minutes
+     * @returns {Promise<string>} JWT token
+     */
+    async generateAccessToken(roomName, participantName, isPublisher = true, ttlMinutes = 30, clientIP = null) {
         try {
+            // Check rate limiting
+            if (clientIP) {
+                const rateLimitCheck = this.errorHandler.checkRateLimit('token_generation', clientIP);
+                if (!rateLimitCheck.allowed) {
+                    throw new Error(rateLimitCheck.message);
+                }
+            }
+
             const at = new AccessToken(this.apiKey, this.apiSecret, {
                 identity: participantName,
-                ttl: '10m', // Token válido por 10 minutos
+                ttl: `${ttlMinutes}m`
             });
 
             at.addGrant({
@@ -34,137 +82,165 @@ class LiveKitManager {
                 room: roomName,
                 canPublish: isPublisher,
                 canSubscribe: true,
-                canUpdateMetadata: true,
+                canUpdateMetadata: true
             });
 
             const token = at.toJwt();
             
-            console.log('🎫 Generated access token:', {
+            console.log('🎫 Access token generated:', {
                 room: roomName,
                 participant: participantName,
-                publisher: isPublisher
+                publisher: isPublisher,
+                ttl: `${ttlMinutes}m`
             });
             
             return token;
         } catch (error) {
-            console.error('❌ Error generating access token:', error);
-            throw error;
+            const errorResponse = this.errorHandler.handleLiveKitError(error, 'token_generation', {
+                roomName,
+                participantName,
+                isPublisher
+            });
+            throw new Error(errorResponse.message);
         }
     }
 
-    // Crear o obtener sala
-    async createOrGetRoom(roomName, maxParticipants = 1000) {
+    /**
+     * Create or get existing room
+     * @param {string} roomName - Room name
+     * @param {number} maxParticipants - Maximum participants
+     * @returns {Promise<Object>} Room object
+     */
+    async createOrGetRoom(roomName, maxParticipants = 1000, clientIP = null) {
         try {
-            // Verificar primero si LiveKit está disponible
-            const httpUrl = this.livekitHost.replace('ws://', 'http://').replace('wss://', 'https://');
-            try {
-                const healthCheckOptions = {
-                    timeout: 10000, // Aumentar timeout para ngrok
-                    headers: {}
-                };
-                
-                // Si es ngrok, agregar header especial
-                if (httpUrl.includes('ngrok-free.app') || httpUrl.includes('ngrok.io')) {
-                    healthCheckOptions.headers['ngrok-skip-browser-warning'] = 'true';
-                }
-                
-                const healthCheck = await fetch(httpUrl, healthCheckOptions);
-                if (!healthCheck.ok) {
-                    throw new Error(`LiveKit server not available. Status: ${healthCheck.status}`);
-                }
-            } catch (fetchError) {
-                throw new Error(`LiveKit server not reachable at ${httpUrl}. Make sure livekit-server.exe is running.`);
+            // Validate room creation limits
+            const validation = this.errorHandler.validateRoomCreation(roomName, maxParticipants);
+            if (!validation.allowed) {
+                throw new Error(validation.message);
             }
 
+            // Check rate limiting
+            if (clientIP) {
+                const rateLimitCheck = this.errorHandler.checkRateLimit('room_creation', clientIP);
+                if (!rateLimitCheck.allowed) {
+                    throw new Error(rateLimitCheck.message);
+                }
+            }
+
+            // Check cache first
             let room = this.activeRooms.get(roomName);
             
             if (!room) {
-                // Crear nueva sala en LiveKit
+                // Create new room with validated parameters
                 room = await this.roomService.createRoom({
                     name: roomName,
-                    emptyTimeout: 300, // 5 minutos vacía
-                    maxParticipants: maxParticipants,
+                    emptyTimeout: 300, // 5 minutes
+                    departureTimeout: 60, // 1 minute
+                    maxParticipants: Math.min(maxParticipants, this.errorHandler.limits.maxParticipantsPerRoom),
                     metadata: JSON.stringify({
                         created: new Date().toISOString(),
-                        type: 'webrtc-streaming',
-                        ultraLowLatency: true
+                        type: 'streaming',
+                        vps: true,
+                        clientIP: clientIP
                     })
                 });
                 
                 this.activeRooms.set(roomName, room);
                 
-                console.log('🏠 Created new LiveKit room:', {
+                // Track room in error handler
+                this.errorHandler.trackRoomCreation(roomName, {
+                    maxParticipants: room.maxParticipants,
+                    createdBy: clientIP
+                });
+                
+                console.log('🏠 Room created:', {
                     name: roomName,
-                    maxParticipants: maxParticipants
+                    maxParticipants: room.maxParticipants,
+                    totalRooms: this.activeRooms.size
                 });
             }
             
             return room;
         } catch (error) {
-            console.error('❌ Error creating/getting room:', error);
+            // Handle specific LiveKit errors
+            const errorResponse = this.errorHandler.handleLiveKitError(error, 'room_creation', {
+                roomName,
+                maxParticipants,
+                clientIP
+            });
             
-            // Si es error de conexión, dar mensaje más claro
-            if (error.message.includes('LiveKit server not')) {
-                throw error; // Re-throw con mensaje claro
-            }
-            
-            // Si la sala ya existe, intentar obtenerla
-            try {
-                const room = await this.roomService.listRooms([roomName]);
-                if (room.length > 0) {
-                    this.activeRooms.set(roomName, room[0]);
-                    return room[0];
+            // Try to get existing room for specific errors
+            if (errorResponse.error === 'ROOM_ALREADY_EXISTS') {
+                try {
+                    const existingRooms = await this.roomService.listRooms([roomName]);
+                    if (existingRooms.length > 0) {
+                        const existingRoom = existingRooms[0];
+                        this.activeRooms.set(roomName, existingRoom);
+                        console.log('📍 Using existing room:', roomName);
+                        return existingRoom;
+                    }
+                } catch (listError) {
+                    console.error('❌ Failed to list existing rooms:', listError.message);
                 }
-            } catch (listError) {
-                console.error('❌ También falló listar salas:', listError.message);
             }
             
-            throw new Error(`Failed to create/get room "${roomName}". Make sure LiveKit server is running.`);
+            throw new Error(errorResponse.message);
         }
     }
 
-    // Obtener estadísticas de sala
+    /**
+     * Get room statistics
+     * @param {string} roomName - Room name
+     * @returns {Promise<Object>} Room stats
+     */
     async getRoomStats(roomName) {
         try {
-            const room = await this.roomService.listRooms([roomName]);
+            const rooms = await this.roomService.listRooms([roomName]);
             
-            if (room.length === 0) {
+            if (rooms.length === 0) {
                 return { exists: false };
             }
             
             const participants = await this.roomService.listParticipants(roomName);
             
-            return {
+            // Update participant count in error handler
+            this.errorHandler.updateRoomParticipants(roomName, participants.length);
+            
+            const roomStats = {
                 exists: true,
-                room: room[0],
+                room: rooms[0],
                 participantCount: participants.length,
                 participants: participants.map(p => ({
                     identity: p.identity,
                     state: p.state,
                     joinedAt: p.joinedAt,
                     tracks: p.tracks?.length || 0
-                }))
+                })),
+                limits: {
+                    maxParticipants: rooms[0].maxParticipants,
+                    remaining: rooms[0].maxParticipants - participants.length
+                },
+                warnings: []
             };
+
+            // Add warnings for high usage
+            if (participants.length > rooms[0].maxParticipants * 0.8) {
+                roomStats.warnings.push('High participant usage');
+            }
+
+            return roomStats;
         } catch (error) {
-            console.error('❌ Error getting room stats:', error);
-            return { exists: false, error: error.message };
+            const errorResponse = this.errorHandler.handleLiveKitError(error, 'get_room_stats', { roomName });
+            return { exists: false, error: errorResponse.message };
         }
     }
 
-    // Listar todas las salas activas
+    /**
+     * List all active rooms
+     * @returns {Promise<Array>} Active rooms list
+     */
     async listActiveRooms() {
         try {
-            // Check if LiveKit server is available (use HTTP not WS for health check)
-            const livekitHttpUrl = this.livekitHost.replace('ws://', 'http://').replace('wss://', 'https://');
-            const response = await fetch(livekitHttpUrl, { 
-                timeout: 2000 
-            }).catch(() => null);
-            
-            if (!response || !response.ok) {
-                console.log('⚠️  LiveKit SFU server not available - using fallback mode');
-                return [];
-            }
-            
             const rooms = await this.roomService.listRooms();
             
             const roomsWithStats = await Promise.all(
@@ -172,122 +248,102 @@ class LiveKitManager {
                     const participants = await this.roomService.listParticipants(room.name);
                     return {
                         name: room.name,
-                        creationTime: room.creationTime ? room.creationTime.toString() : null,
-                        numParticipants: room.numParticipants,
-                        maxParticipants: room.maxParticipants,
+                        creationTime: room.creationTime?.toString() || null,
+                        numParticipants: room.numParticipants || 0,
+                        maxParticipants: room.maxParticipants || 1000,
                         participants: participants.length,
-                        metadata: room.metadata ? JSON.parse(room.metadata) : {}
+                        metadata: this._parseMetadata(room.metadata)
                     };
                 })
             );
             
             return roomsWithStats;
         } catch (error) {
-            console.error('❌ Error listing active rooms:', error);
+            console.error('❌ Error listing rooms:', error.message);
             return [];
         }
     }
 
-    // Alias método para compatibilidad con servidor
-    async listRooms() {
+    /**
+     * Health check for LiveKit service
+     * @returns {Promise<Object>} Health status
+     */
+    async healthCheck() {
         try {
-            const rooms = await this.listActiveRooms();
+            await this.roomService.listRooms();
+            const systemStatus = this.errorHandler.getSystemStatus();
+            
             return {
-                success: true,
-                rooms: rooms,
-                totalRooms: rooms.length
+                status: systemStatus.healthy ? 'healthy' : 'degraded',
+                server: this.livekitHost,
+                timestamp: new Date().toISOString(),
+                metrics: systemStatus.metrics,
+                limits: systemStatus.limits,
+                recentErrors: systemStatus.recentErrors.length,
+                uptime: Math.round(systemStatus.uptime)
             };
         } catch (error) {
-            console.error('❌ Error in listRooms:', error);
+            const errorResponse = this.errorHandler.handleLiveKitError(error, 'health_check');
             return {
-                success: false,
-                error: error.message,
-                rooms: [],
-                totalRooms: 0
+                status: 'unhealthy',
+                server: this.livekitHost,
+                error: errorResponse.message,
+                timestamp: new Date().toISOString(),
+                retryable: errorResponse.retryable
             };
         }
     }
 
-    // Remover participante de sala
+    /**
+     * Remove participant from room
+     * @param {string} roomName - Room name
+     * @param {string} participantIdentity - Participant identity
+     * @returns {Promise<boolean>} Success status
+     */
     async removeParticipant(roomName, participantIdentity) {
         try {
             await this.roomService.removeParticipant(roomName, participantIdentity);
-            console.log('👋 Participant removed:', {
-                room: roomName,
-                participant: participantIdentity
-            });
+            console.log('👋 Participant removed:', { room: roomName, participant: participantIdentity });
             return true;
         } catch (error) {
-            console.error('❌ Error removing participant:', error);
+            console.error('❌ Error removing participant:', error.message);
             return false;
         }
     }
 
-    // Cerrar sala (opcional)
-    async closeRoom(roomName) {
+    /**
+     * Delete room
+     * @param {string} roomName - Room name
+     * @returns {Promise<boolean>} Success status
+     */
+    async deleteRoom(roomName) {
         try {
             await this.roomService.deleteRoom(roomName);
             this.activeRooms.delete(roomName);
-            console.log('🚪 Room closed:', roomName);
+            
+            // Untrack room from error handler
+            this.errorHandler.untrackRoom(roomName);
+            
+            console.log('🗑️ Room deleted:', roomName);
             return true;
         } catch (error) {
-            console.error('❌ Error closing room:', error);
+            const errorResponse = this.errorHandler.handleLiveKitError(error, 'delete_room', { roomName });
+            console.error('❌ Error deleting room:', errorResponse.message);
             return false;
         }
     }
 
-    // Health check de LiveKit
-    async healthCheck() {
+    /**
+     * Parse room metadata safely
+     * @private
+     * @param {string} metadata - JSON metadata string
+     * @returns {Object} Parsed metadata
+     */
+    _parseMetadata(metadata) {
         try {
-            const rooms = await this.roomService.listRooms();
-            return {
-                status: 'ok',
-                server: this.livekitHost,
-                roomCount: rooms.length,
-                timestamp: new Date().toISOString()
-            };
-        } catch (error) {
-            return {
-                status: 'error',
-                server: this.livekitHost,
-                error: error.message,
-                timestamp: new Date().toISOString()
-            };
-        }
-    }
-
-    // Limpiar salas sin participantes
-    async cleanupEmptyRooms() {
-        try {
-            console.log('🧹 Iniciando limpieza de salas huérfanas...');
-            
-            const rooms = await this.roomService.listRooms();
-            const deletedRooms = [];
-            
-            for (const room of rooms) {
-                if (room.numParticipants === 0) {
-                    try {
-                        await this.roomService.deleteRoom(room.name);
-                        deletedRooms.push(room.name);
-                        console.log(`🗑️ Sala eliminada: ${room.name}`);
-                    } catch (deleteError) {
-                        console.warn(`⚠️ No se pudo eliminar sala ${room.name}:`, deleteError.message);
-                    }
-                }
-            }
-            
-            const remainingRooms = await this.roomService.listRooms();
-            
-            console.log(`🧹 Limpieza completada: ${deletedRooms.length} salas eliminadas`);
-            
-            return {
-                deletedRooms,
-                totalRoomsAfter: remainingRooms.length
-            };
-            
-        } catch (error) {
-            console.error('❌ Error en limpieza de salas:', error);
-            throw error;
+            return metadata ? JSON.parse(metadata) : {};
+        } catch {
+            return {};
         }
     }
 }

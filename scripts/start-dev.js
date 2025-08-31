@@ -80,8 +80,8 @@ class DevServer {
       this.localIP = detectAndUpdateIP();
       await this.sleep(1000);
       
-      // 2. Iniciar Redis (Docker)
-      const spinner1 = ora('🗄️ Iniciando Redis (Docker)...').start();
+      // 2. Iniciar Redis local (Docker)
+      const spinner1 = ora('🗄️ Iniciando Redis local (Docker)...').start();
       await this.runCommand(
         'Redis',
         'docker-compose',
@@ -91,34 +91,18 @@ class DevServer {
           background: true 
         }
       );
-      spinner1.succeed('✅ Redis iniciado');
+      spinner1.succeed('✅ Redis local iniciado');
       await this.sleep(3000);
       
-      // 3. Iniciar LiveKit
-      const spinner2 = ora('🎥 Iniciando LiveKit SFU...').start();
-      const livekitPath = path.join(__dirname, '..', 'livekit-native', 'livekit-server.exe');
-      const livekitConfig = path.join(__dirname, '..', 'livekit-native', 'livekit-native-config.yaml');
-      
-      if (!fs.existsSync(livekitPath)) {
-        spinner2.fail('❌ LiveKit no encontrado');
-        this.log(`LiveKit no encontrado en ${livekitPath}`, 'error');
-        this.log('Por favor descarga LiveKit desde: https://github.com/livekit/livekit/releases');
-        process.exit(1);
-      }
-      
-      const livekitProc = spawn(livekitPath, ['--config', livekitConfig], {
-        detached: true,
-        stdio: 'ignore',
-        shell: false
-      });
-      livekitProc.unref();
-      this.processes.set('livekit', livekitProc);
-      spinner2.succeed('✅ LiveKit SFU iniciado');
-      await this.sleep(3000);
+      // 3. Conexión a VPS LiveKit
+      const spinner2 = ora('📡 Conectando a VPS LiveKit Server...').start();
+      this.log('🌐 Usando LiveKit VPS: wss://5.78.143.204');
+      spinner2.succeed('✅ VPS LiveKit configurado');
+      await this.sleep(1000);
       
       // 4. Iniciar Backend
       const spinner3 = ora('🖥️ Iniciando Backend (Puerto 5001)...').start();
-      const backendProc = spawn('npm', ['start'], {
+      const backendProc = spawn('npm', ['run', 'dev'], {
         cwd: path.join(__dirname, '..', 'backend-local'),
         shell: true,
         detached: true,
@@ -173,8 +157,8 @@ class DevServer {
     console.log('='.repeat(50));
     
     console.log('\n📊 ' + chalk.bold('Servicios activos:'));
-    console.log(`   - Redis: ${chalk.cyan('localhost:6379')}`);
-    console.log(`   - LiveKit SFU: ${chalk.cyan(`ws://${this.localIP}:7880`)}`);
+    console.log(`   - Redis Local: ${chalk.cyan('localhost:6379')}`);
+    console.log(`   - LiveKit VPS: ${chalk.cyan('wss://5.78.143.204')}`);
     console.log(`   - Backend: ${chalk.cyan(`http://${this.localIP}:5001`)}`);
     console.log(`   - Admin: ${chalk.cyan(`http://${this.localIP}:3000`)}`);
     console.log(`   - Viewer: ${chalk.cyan(`http://${this.localIP}:3001`)}`);
@@ -182,6 +166,10 @@ class DevServer {
     console.log('\n📱 ' + chalk.bold('Para dispositivos en red local:'));
     console.log(`   - Admin: ${chalk.magenta(`http://${this.localIP}:3000`)}`);
     console.log(`   - Viewer: ${chalk.magenta(`http://${this.localIP}:3001`)}`);
+    
+    console.log('\n🌐 ' + chalk.bold('LiveKit VPS:'));
+    console.log(`   - URL: ${chalk.green('wss://5.78.143.204')}`);
+    console.log(`   - API Key: ${chalk.yellow('APIwTqW8EBDZ3nk')}`);
     
     console.log('\n🛑 ' + chalk.bold('Para detener:') + ' npm run stop:dev\n');
   }

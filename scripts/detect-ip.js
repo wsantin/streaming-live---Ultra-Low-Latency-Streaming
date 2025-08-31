@@ -87,27 +87,24 @@ export function main() {
   
   console.log('\n📊 Configurando archivos .env...\n');
   
-  // Actualizar backend .env.development
-  const backendEnvPath = path.join(__dirname, '..', 'backend-local', '.env.development');
+  // Actualizar backend .env (mantener VPS LiveKit)
+  const backendEnvPath = path.join(__dirname, '..', 'backend-local', '.env');
   updateEnvFile(backendEnvPath, {
     'SERVER_HOST': localIP,
     'REDIS_HOST': 'localhost', // Redis siempre local
-    'LIVEKIT_HOST': `ws://${localIP}:7880`
+    'LIVEKIT_HOST': 'wss://5.78.143.204' // VPS LiveKit siempre
   });
   
-  // Actualizar frontend-admin .env.development
-  const adminEnvPath = path.join(__dirname, '..', 'frontend-admin', '.env.development');
+  // Actualizar frontend-admin .env
+  const adminEnvPath = path.join(__dirname, '..', 'frontend-admin', '.env');
   updateEnvFile(adminEnvPath, {
-    'VITE_API_URL': `http://${localIP}:5001`,
-    'VITE_LIVEKIT_URL': `ws://${localIP}:7880`,
-    'VITE_VIEWER_URL': `http://${localIP}:3001`
+    'VITE_API_URL': `http://${localIP}:5001`
   });
   
-  // Actualizar frontend-viewer .env.development
-  const viewerEnvPath = path.join(__dirname, '..', 'frontend-viewer', '.env.development');
+  // Actualizar frontend-viewer .env
+  const viewerEnvPath = path.join(__dirname, '..', 'frontend-viewer', '.env');
   updateEnvFile(viewerEnvPath, {
     'VITE_API_URL': `http://${localIP}:5001`,
-    'VITE_LIVEKIT_URL': `ws://${localIP}:7880`
   });
   
   console.log('\n✅ Todos los archivos .env actualizados con IP:', localIP);

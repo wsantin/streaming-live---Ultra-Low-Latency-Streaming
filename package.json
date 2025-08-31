@@ -1,37 +1,32 @@
 {
   "name": "webrtc-streaming-system",
   "version": "1.0.0",
-  "description": "Ultra-Low Latency WebRTC Streaming System with Dynamic Environment Management",
+  "description": "Professional Ultra-Low Latency Streaming System with LiveKit VPS",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/start-dev.js", 
-    "dev:bat": "scripts\\start-dev.bat",
+    "dev": "node scripts/start-dev.js",
     "stop:dev": "node scripts/stop-dev.js",
-    "stop:dev:bat": "scripts\\stop-dev.bat",
     "prod": "node scripts/start-prod.js",
-    "prod:bat": "scripts\\start-prod.bat",
     "stop:prod": "node scripts/stop-prod.js",
-    "stop:prod:bat": "scripts\\stop-prod.bat",
-    "ip": "node scripts/detect-ip.js",
-    "ip:bat": "scripts\\detect-local-ip.bat",
-    "check-livekit": "node scripts/check-livekit.js",
-    "check-livekit:bat": "scripts\\check-livekit.bat",
-    "validate-env": "node scripts/validate-env.js"
+    "ip": "node scripts/detect-ip.js"
   },
   "keywords": [
-    "webrtc",
+    "livekit",
     "streaming",
-    "p2p",
+    "sfu",
     "ultra-low-latency",
-    "cloudflare-tunnel"
+    "webrtc",
+    "professional",
+    "vps"
   ],
   "dependencies": {
     "chalk": "^5.3.0",
     "cross-spawn": "^7.0.3",
     "livekit-client": "^2.15.6",
     "node-fetch": "^3.3.2",
-    "ora": "^8.0.1"
+    "ora": "^8.0.1",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

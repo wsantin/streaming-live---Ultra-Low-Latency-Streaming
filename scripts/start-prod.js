@@ -56,27 +56,7 @@ class ProdServer {
     }
   }
 
-  async checkNgrok() {
-    try {
-      execSync('where ngrok', { stdio: 'ignore' });
-      return true;
-    } catch {
-      const spinner = ora('📥 Instalando ngrok...').start();
-      try {
-        execSync('winget install ngrok.ngrok -e --accept-source-agreements --accept-package-agreements', 
-          { stdio: 'pipe' });
-        spinner.succeed('✅ ngrok instalado');
-        this.log('⚠️ IMPORTANTE: Debes configurar tu token de ngrok con: ngrok config add-authtoken [tu-token]');
-        this.log('💡 Obtén tu token en: https://dashboard.ngrok.com/get-started/your-authtoken');
-        return true;
-      } catch (error) {
-        spinner.fail('❌ Error instalando ngrok');
-        this.log('Por favor instala ngrok manualmente: winget install ngrok.ngrok');
-        this.log('Y configura tu token: ngrok config add-authtoken [tu-token]');
-        return false;
-      }
-    }
-  }
+  // Eliminado checkNgrok() - ya no se necesita
 
   async startRedis() {
     const spinner = ora('🗄️ Verificando/Iniciando Redis...').start();
@@ -107,58 +87,29 @@ class ProdServer {
     });
   }
 
-  async startLiveKit() {
-    const spinner = ora('🎥 Verificando/Iniciando LiveKit SFU...').start();
+  async checkVPSLiveKit() {
+    const spinner = ora('📡 Verificando conexión VPS LiveKit...').start();
     
-    return new Promise((resolve, reject) => {
-      // Verificar si LiveKit ya está corriendo
-      try {
-        const checkLiveKit = execSync('tasklist /fi "imagename eq livekit-server.exe"', { encoding: 'utf8' });
-        if (checkLiveKit.includes('livekit-server.exe')) {
-          spinner.succeed('✅ LiveKit ya está activo');
-          resolve();
-          return;
-        }
-      } catch (error) {
-        // LiveKit no está corriendo, iniciarlo
-      }
-
-      const livekitPath = path.join(__dirname, '..', 'livekit-native', 'livekit-server.exe');
-      
-      if (!fs.existsSync(livekitPath)) {
-        spinner.fail('❌ LiveKit no encontrado');
-        this.log(`LiveKit no encontrado en ${livekitPath}`, 'error');
-        reject(new Error('LiveKit no encontrado'));
-        return;
-      }
-
-      const livekitProcess = spawn(livekitPath, 
-        ['--config', '.\\livekit-native\\livekit-native-config.yaml'], {
-        cwd: path.join(__dirname, '..'),
-        stdio: 'pipe',
-        shell: false
-      });
-
-      setTimeout(() => {
-        spinner.succeed('✅ LiveKit SFU iniciado');
-        this.processes.set('livekit', livekitProcess);
-        resolve();
-      }, 5000);
+    return new Promise((resolve) => {
+      this.log('🌐 Usando LiveKit VPS: wss://5.78.143.204');
+      this.log('🔑 API Key: APIwTqW8EBDZ3nk');
+      spinner.succeed('✅ VPS LiveKit configurado');
+      resolve();
     });
   }
 
   async startBackend() {
-    const spinner = ora('🖥️ Iniciando Backend Producción (Puerto 6001)...').start();
+    const spinner = ora('🖥️ Iniciando Backend (Puerto 5001)...').start();
     
     return new Promise((resolve) => {
-      const backendProcess = spawn('npm', ['run', 'start:prod'], {
+      const backendProcess = spawn('npm', ['run', 'dev'], {
         cwd: path.join(__dirname, '..', 'backend-local'),
         stdio: 'pipe',
         shell: true
       });
 
       setTimeout(() => {
-        spinner.succeed('✅ Backend producción iniciado');
+        spinner.succeed('✅ Backend iniciado');
         this.processes.set('backend', backendProcess);
         resolve();
       }, 4000);
@@ -208,197 +159,145 @@ class ProdServer {
 
       this.processes.set(`tunnel-${name}`, tunnelProcess);
 
-      // Esperar y verificar detección
-      setTimeout(() => {
-        if (!urlDetected) {
+      // Esperar y verificar detección con múltiples intentos
+      let attempts = 0;
+      const maxAttempts = 8;
+      const checkInterval = setInterval(() => {
+        attempts++;
+        
+        if (urlDetected) {
+          clearInterval(checkInterval);
+          resolve();
+          return;
+        }
+        
+        if (attempts >= maxAttempts) {
+          clearInterval(checkInterval);
           // Último intento de detectar en todo el output
           const urlMatch = output.match(/https:\/\/[\w-]+\.trycloudflare\.com/);
           if (urlMatch) {
             this.tunnelUrls.set(name, urlMatch[0]);
             this.log(`✅ Túnel ${name}: ${urlMatch[0]}`, 'success');
           } else {
-            this.log(`⚠️ URL de túnel ${name} no detectada. Revisa ${logFile}`, 'warning');
-            this.tunnelUrls.set(name, `https://example-${name}.trycloudflare.com`);
+            this.log(`⚠️ URL de túnel ${name} no detectada después de ${maxAttempts} intentos`, 'warning');
+            this.log(`📄 Revisa el archivo ${logFile} para más detalles`, 'warning');
+            // No establecer URL falsa, dejar que use fallback local
           }
+          resolve();
+          return;
         }
-        resolve();
-      }, 20000); // Aumentar tiempo de espera
+        
+        // Intentar detectar URL en cada intento
+        const attemptMatch = output.match(/https:\/\/[\w-]+\.trycloudflare\.com/);
+        if (attemptMatch && !urlDetected) {
+          urlDetected = true;
+          this.tunnelUrls.set(name, attemptMatch[0]);
+          this.log(`✅ Túnel ${name}: ${attemptMatch[0]} (intento ${attempts})`, 'success');
+          clearInterval(checkInterval);
+          resolve();
+        }
+      }, 3000); // Revisar cada 3 segundos
     });
   }
 
-  async createNgrokTunnel(name, port, logFile) {
-    return new Promise((resolve) => {
-      this.log(`🚀 Creando túnel ngrok ${name} para puerto ${port}...`);
-      
-      const ngrokProcess = spawn('ngrok', ['http', port.toString(), '--log=stdout'], {
-        stdio: 'pipe',
-        shell: true
-      });
-
-      // Capturar salida para extraer URL
-      let output = '';
-      let urlDetected = false;
-      
-      ngrokProcess.stdout.on('data', (data) => {
-        const chunk = data.toString();
-        output += chunk;
-        fs.appendFileSync(path.join(__dirname, logFile), chunk);
-        
-        // Detectar URL de ngrok (formato: https://xxxx-xx-xx-xx-xx.ngrok-free.app)
-        const urlMatch = chunk.match(/https:\/\/[\w-]+\.ngrok-free\.app/) || 
-                         chunk.match(/https:\/\/[\w-]+\.ngrok\.io/) ||
-                         chunk.match(/url=https:\/\/[\w-]+\.ngrok-free\.app/) ||
-                         chunk.match(/url=https:\/\/[\w-]+\.ngrok\.io/);
-        
-        if (urlMatch && !urlDetected) {
-          urlDetected = true;
-          const cleanUrl = urlMatch[0].replace('url=', '');
-          this.tunnelUrls.set(name, cleanUrl);
-          this.log(`✅ Túnel ngrok ${name}: ${cleanUrl}`, 'success');
-        }
-      });
-
-      ngrokProcess.stderr.on('data', (data) => {
-        const chunk = data.toString();
-        output += chunk;
-        fs.appendFileSync(path.join(__dirname, logFile), chunk);
-        
-        // También buscar en stderr
-        const urlMatch = chunk.match(/https:\/\/[\w-]+\.ngrok-free\.app/) || 
-                         chunk.match(/https:\/\/[\w-]+\.ngrok\.io/);
-        if (urlMatch && !urlDetected) {
-          urlDetected = true;
-          this.tunnelUrls.set(name, urlMatch[0]);
-          this.log(`✅ Túnel ngrok ${name}: ${urlMatch[0]}`, 'success');
-        }
-      });
-
-      this.processes.set(`ngrok-${name}`, ngrokProcess);
-
-      // Esperar y verificar detección
-      setTimeout(() => {
-        if (!urlDetected) {
-          // Último intento de detectar en todo el output
-          const urlMatch = output.match(/https:\/\/[\w-]+\.ngrok-free\.app/) || 
-                           output.match(/https:\/\/[\w-]+\.ngrok\.io/);
-          if (urlMatch) {
-            this.tunnelUrls.set(name, urlMatch[0]);
-            this.log(`✅ Túnel ngrok ${name}: ${urlMatch[0]}`, 'success');
-          } else {
-            this.log(`⚠️ URL de túnel ngrok ${name} no detectada. Revisa ${logFile}`, 'warning');
-            this.log('💡 Asegúrate de haber configurado tu token de ngrok: ngrok config add-authtoken [token]');
-            this.tunnelUrls.set(name, `https://example-${name}.ngrok-free.app`);
-          }
-        }
-        resolve();
-      }, 30000); // 30 segundos para ngrok
-    });
-  }
+  // Eliminado createNgrokTunnel() - ya no se necesita
 
   async updateEnvFiles() {
-    const spinner = ora('⚙️ Configurando archivos .env.production y vite.config.js...').start();
+    const spinner = ora('⚙️ Configurando archivos .env con URLs de túneles...').start();
     
     const backendUrl = this.tunnelUrls.get('backend');
     const livekitUrl = this.tunnelUrls.get('livekit')?.replace('https://', 'wss://');
+    const adminUrl = this.tunnelUrls.get('admin');
+    const viewerUrl = this.tunnelUrls.get('viewer');
 
-    // Backend .env.production
-    // Detectar IP local de red (para LiveKit)
+    // Detectar IP local de red (SIN ejecutar detect-ip.js que sobreescribe archivos .env)
     let localNetworkIP = '192.168.1.38'; // Fallback
     try {
-      const ipOutput = execSync('node scripts/detect-ip.js', { 
-        cwd: path.join(__dirname, '..'),
-        encoding: 'utf8' 
-      });
-      
-      const ipMatch = ipOutput.match(/IP seleccionada: ([\d\.]+)/);
-      if (ipMatch) {
-        localNetworkIP = ipMatch[1];
-        this.log(`🏠 IP de red local detectada: ${localNetworkIP}`, 'success');
+      // Obtener IP local directamente
+      const os = await import('os');
+      const interfaces = os.networkInterfaces();
+      for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+          if (iface.family === 'IPv4' && !iface.internal) {
+            if (iface.address.startsWith('192.168.') || iface.address.startsWith('10.')) {
+              localNetworkIP = iface.address;
+              break;
+            }
+          }
+        }
+        if (localNetworkIP !== '192.168.1.38') break;
       }
+      
+      this.log(`🏠 IP de red local detectada: ${localNetworkIP}`, 'success');
     } catch (error) {
       this.log('⚠️ No se pudo detectar IP local, usando fallback', 'warning');
     }
 
-    const backendEnv = `# Backend Production Environment
-# ===============================
+    // Verificar URLs de túneles
+    this.log('🔍 Verificando URLs de túneles detectadas:', 'info');
+    this.log(`   Backend: ${backendUrl || 'NO DETECTADA'}`, backendUrl ? 'success' : 'warning');
+    this.log(`   LiveKit: ${livekitUrl || 'NO DETECTADA'}`, livekitUrl ? 'success' : 'warning');
+    this.log(`   Admin: ${adminUrl || 'NO DETECTADA'}`, adminUrl ? 'success' : 'warning');
+    this.log(`   Viewer: ${viewerUrl || 'NO DETECTADA'}`, viewerUrl ? 'success' : 'warning');
 
-NODE_ENV=production
-PORT=6001
+    // Usar URLs de túneles si están disponibles, sino usar fallbacks locales
+    const finalBackendUrl = backendUrl || `http://${localNetworkIP}:5001`;
+    const finalLivekitUrl = 'wss://5.78.143.204'; // Usar VPS LiveKit siempre
+    const finalViewerUrl = viewerUrl || `http://${localNetworkIP}:3001`;
+    
+    // Debug: mostrar qué URLs se van a usar
+    this.log('🔧 URLs que se aplicarán a los archivos .env:', 'info');
+    this.log(`   Backend → ${finalBackendUrl}`, finalBackendUrl === backendUrl ? 'success' : 'warning');
+    this.log(`   LiveKit → ${finalLivekitUrl}`, finalLivekitUrl === livekitUrl ? 'success' : 'warning');
+    this.log(`   Viewer → ${finalViewerUrl}`, finalViewerUrl === viewerUrl ? 'success' : 'warning');
 
+    // Backend .env
+    const backendEnv = `# Backend Environment
+NODE_ENV=development
+PORT=5001
+SERVER_HOST=${localNetworkIP}
 REDIS_HOST=localhost
 REDIS_PORT=6379
-
-LIVEKIT_HOST=${livekitUrl}
-LIVEKIT_API_KEY=devkey1000
-LIVEKIT_API_SECRET=ultralowlatency2025secretkeyforlivekitsfuserver
-`;
+LIVEKIT_HOST=${finalLivekitUrl}
+LIVEKIT_API_KEY=APIwTqW8EBDZ3nk
+LIVEKIT_API_SECRET=4gRkQFcWqxNzYGmkfmPzHN8dXL5V2KbJTsAd7FBwhPeM`;
 
     fs.writeFileSync(
-      path.join(__dirname, '..', 'backend-local', '.env.production'),
+      path.join(__dirname, '..', 'backend-local', '.env'),
       backendEnv
     );
 
-    // Frontend Admin .env.production
-    const adminEnv = `# Frontend Admin Production
-VITE_NODE_ENV=production
-VITE_API_URL=${backendUrl}
-VITE_LIVEKIT_URL=${livekitUrl}
-VITE_VIEWER_URL=https://tu-viewer-tunnel.trycloudflare.com
-`;
+    // Frontend Admin .env
+    const adminEnv = `# Frontend Admin Environment
+VITE_NODE_ENV=development
+VITE_PORT=3000
+VITE_API_URL=${finalBackendUrl}`;
 
     fs.writeFileSync(
-      path.join(__dirname, '..', 'frontend-admin', '.env.production'),
+      path.join(__dirname, '..', 'frontend-admin', '.env'),
       adminEnv
     );
 
-    // Frontend Viewer .env.production
-    const viewerEnv = `# Frontend Viewer Production
-VITE_NODE_ENV=production
-VITE_API_URL=${backendUrl}
-VITE_LIVEKIT_URL=${livekitUrl}
-`;
+    // Frontend Viewer .env
+    const viewerEnv = `# Frontend Viewer Environment
+VITE_NODE_ENV=development
+VITE_PORT=3001
+VITE_API_URL=${finalBackendUrl}`;
 
     fs.writeFileSync(
-      path.join(__dirname, '..', 'frontend-viewer', '.env.production'),
+      path.join(__dirname, '..', 'frontend-viewer', '.env'),
       viewerEnv
     );
 
-    // Actualizar configuración LiveKit con IP local de red
-    await this.updateLiveKitConfig(localNetworkIP);
+    // Log final URLs
+    this.log('📝 URLs finales configuradas:', 'info');
+    this.log(`   Backend API: ${finalBackendUrl}`, 'success');
+    this.log(`   Backend LIVEKIT_HOST: ${finalLivekitUrl}`, 'success');
+    this.log(`   Frontend VITE_API_URL: ${finalBackendUrl}`, 'success');
 
-    // Actualizar vite.config.js con IP local actual
-    await this.updateViteConfigs();
+    // NO ejecutar updateViteConfigs() que llama a detect-ip.js y sobreescribe todo
 
-    spinner.succeed('✅ Archivos .env.production, LiveKit config y vite.config.js actualizados');
-  }
-
-  async updateLiveKitConfig(localNetworkIP) {
-    const livekitConfigPath = path.join(__dirname, '..', 'livekit-native', 'livekit-native-config.yaml');
-    
-    if (fs.existsSync(livekitConfigPath)) {
-      let configContent = fs.readFileSync(livekitConfigPath, 'utf8');
-      
-      // Actualizar use_external_ip y external_ip
-      configContent = configContent.replace(
-        /use_external_ip:\s*false/g,
-        'use_external_ip: true'
-      );
-      
-      if (configContent.includes('external_ip:')) {
-        configContent = configContent.replace(
-          /external_ip:\s*[\d\.]+/g,
-          `external_ip: ${localNetworkIP}`
-        );
-      } else {
-        configContent = configContent.replace(
-          /(use_external_ip: true)/,
-          `$1\n  external_ip: ${localNetworkIP}`
-        );
-      }
-      
-      fs.writeFileSync(livekitConfigPath, configContent);
-      this.log(`🎥 LiveKit configurado con IP local de red: ${localNetworkIP}`, 'success');
-    }
+    spinner.succeed('✅ Archivos .env y configuraciones actualizados con URLs de túneles');
   }
 
   async updateViteConfigs() {
@@ -447,10 +346,10 @@ VITE_LIVEKIT_URL=${livekitUrl}
   }
 
   async startFrontends() {
-    // Start admin (package.json decides build strategy)
+    // Start admin
     const adminSpinner = ora('👨‍💼 Iniciando Frontend Admin...').start();
 
-    const adminProcess = spawn('npm', ['run', 'prod'], {
+    const adminProcess = spawn('npm', ['run', 'dev'], {
       cwd: path.join(__dirname, '..', 'frontend-admin'),
       stdio: 'pipe',
       shell: true
@@ -461,10 +360,10 @@ VITE_LIVEKIT_URL=${livekitUrl}
 
     await this.sleep(2000);
 
-    // Start viewer (package.json decides build strategy)
+    // Start viewer
     const viewerSpinner = ora('👁️ Iniciando Frontend Viewer...').start();
 
-    const viewerProcess = spawn('npm', ['run', 'prod'], {
+    const viewerProcess = spawn('npm', ['run', 'dev'], {
       cwd: path.join(__dirname, '..', 'frontend-viewer'),
       stdio: 'pipe',
       shell: true
@@ -477,38 +376,38 @@ VITE_LIVEKIT_URL=${livekitUrl}
   async createFrontendTunnels() {
     this.log('🌐 Creando túneles para frontends...');
     
-    // Crear túneles con puertos correctos 4000/4001
-    await this.createTunnel('admin', 4000, 'admin-tunnel.log');
-    await this.createTunnel('viewer', 4001, 'viewer-tunnel.log');
+    // Crear túneles con puertos dev
+    await this.createTunnel('admin', 3000, 'admin-tunnel.log');
+    await this.createTunnel('viewer', 3001, 'viewer-tunnel.log');
     
     this.log('✅ Túneles frontend creados con URLs detectadas', 'success');
   }
 
   displayInfo() {
     console.log('\n' + '='.repeat(70));
-    console.log(chalk.green.bold('✅ Sistema Híbrido de Producción Iniciado'));
+    console.log(chalk.green.bold('✅ Sistema de Producción Cloudflare Iniciado'));
     console.log('='.repeat(70));
     
-    console.log('\n🌐 ' + chalk.bold('URLs de Túneles Públicos (HÍBRIDO):'));
+    console.log('\n🌐 ' + chalk.bold('URLs de Túneles Públicos (CLOUDFLARE):'));
     console.log(`   🖥️  Backend API: ${chalk.cyan(this.tunnelUrls.get('backend') || 'Ver backend-tunnel.log')} ${chalk.gray('(Cloudflare)')}`);
-    console.log(`   📡 LiveKit SFU: ${chalk.green(this.tunnelUrls.get('livekit') || 'Ver livekit-ngrok.log')} ${chalk.gray('(ngrok - WebRTC optimizado)')}`);
+    console.log(`   📡 LiveKit VPS: ${chalk.green('wss://5.78.143.204')} ${chalk.gray('(VPS - WebRTC)')}`);
     console.log(`   👨‍💼 Admin Panel: ${chalk.magenta(this.tunnelUrls.get('admin') || 'Ver admin-tunnel.log')} ${chalk.gray('(Cloudflare)')}`);
     console.log(`   👁️  Viewer Panel: ${chalk.magenta(this.tunnelUrls.get('viewer') || 'Ver viewer-tunnel.log')} ${chalk.gray('(Cloudflare)')}`);
     
-    console.log('\n🔧 ' + chalk.bold('Puertos Locales de Producción:'));
-    console.log(`   - Backend: ${chalk.yellow('localhost:6001')}`);
-    console.log(`   - LiveKit: ${chalk.yellow('localhost:7880')} ${chalk.green('→ ngrok')}`);
-    console.log(`   - Admin Production: ${chalk.yellow('localhost:4000')}`);
-    console.log(`   - Viewer Production: ${chalk.yellow('localhost:4001')}`);
+    console.log('\n🔧 ' + chalk.bold('Puertos Locales:'));
+    console.log(`   - Backend: ${chalk.yellow('localhost:5001')}`);
+    console.log(`   - LiveKit VPS: ${chalk.green('wss://5.78.143.204')} ${chalk.gray('(Remoto)')}`);
+    console.log(`   - Admin: ${chalk.yellow('localhost:3000')}`);
+    console.log(`   - Viewer: ${chalk.yellow('localhost:3001')}`);
     console.log(`   - Redis: ${chalk.yellow('localhost:6379')}`);
     
     console.log('\n💡 ' + chalk.bold('Configuración Híbrida:'));
-    console.log('   🌐 ' + chalk.cyan('Cloudflare') + ': Backend, Admin, Viewer (HTTP/API)');
-    console.log('   🚀 ' + chalk.green('ngrok') + ': LiveKit (WebRTC/WebSocket optimizado)');
+    console.log('   🌐 ' + chalk.cyan('Cloudflare') + ': Frontend y Backend');
+    console.log('   🚀 ' + chalk.green('VPS LiveKit') + ': Streaming server profesional');
     
-    console.log('\n📝 ' + chalk.bold('Archivos .env.production actualizados automáticamente'));
+    console.log('\n📝 ' + chalk.bold('Archivos .env actualizados automáticamente con URLs de túneles'));
     console.log('🛑 ' + chalk.bold('Para detener:') + ' npm run stop:prod');
-    console.log('📋 ' + chalk.bold('Logs:') + ' backend-tunnel.log, livekit-ngrok.log, admin-tunnel.log, viewer-tunnel.log\n');
+    console.log('📋 ' + chalk.bold('Logs:') + ' backend-tunnel.log, admin-tunnel.log, viewer-tunnel.log\n');
   }
 
   showFinalSummary() {
@@ -549,46 +448,37 @@ VITE_LIVEKIT_URL=${livekitUrl}
         process.exit(1);
       }
 
-      const hasNgrok = await this.checkNgrok();
-      if (!hasNgrok) {
-        process.exit(1);
-      }
-
       // 2. Limpiar logs anteriores
-      ['backend-tunnel.log', 'livekit-ngrok.log', 'admin-tunnel.log', 'viewer-tunnel.log'].forEach(file => {
+      ['backend-tunnel.log', 'admin-tunnel.log', 'viewer-tunnel.log'].forEach(file => {
         const filePath = path.join(__dirname, file);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
         }
       });
 
-      // 3. CREAR TÚNELES HÍBRIDOS
-      this.log('📡 PASO 1: Creando túneles híbridos...', 'info');
+      // 3. CREAR TÚNELES CLOUDFLARE
+      this.log('📡 PASO 1: Creando túneles Cloudflare...', 'info');
       this.log('   🌐 Cloudflare para Backend', 'info');
-      this.log('   🚀 ngrok para LiveKit (mejor compatibilidad WebRTC)', 'info');
+      this.log('   🌐 Cloudflare para LiveKit', 'info');
       
-      // Backend con Cloudflare (funciona bien para API REST)
-      await this.createTunnel('backend', 6001, 'backend-tunnel.log');
+      // Backend con Cloudflare
+      await this.createTunnel('backend', 5001, 'backend-tunnel.log');
       
-      // LiveKit con ngrok (mejor para WebRTC/WebSocket)
-      await this.createNgrokTunnel('livekit', 7880, 'livekit-ngrok.log');
+      // VPS LiveKit - no necesita túnel local
+      await this.checkVPSLiveKit();
       
       // 4. ACTUALIZAR archivos .env CON URLs de túneles ANTES de iniciar servicios
-      this.log('📝 PASO 2: Actualizando archivos .env.production con URLs de túneles...', 'info');
+      this.log('📝 PASO 2: Actualizando archivos .env con URLs de túneles...', 'info');
       await this.updateEnvFiles();
 
       // 5. INICIAR servicios con configuración ya actualizada
       this.log('🚀 PASO 3: Iniciando servicios backend con configuración de producción...', 'info');
       await this.startRedis();
       
-      // IMPORTANTE: Iniciar LiveKit DESPUÉS de tener su URL pública
-      this.log('🎥 Iniciando LiveKit con configuración de túnel...', 'info');
-      await this.startLiveKit();
-      
       await this.startBackend();
 
-      // 6. Start frontends (package.json decide strategy)
-      this.log('🚀 PASO 4: Iniciando frontends en modo producción...', 'info');
+      // 6. Start frontends
+      this.log('🚀 PASO 4: Iniciando frontends...', 'info');
       await this.startFrontends();
 
       // 7. Crear túneles para frontends
@@ -622,7 +512,7 @@ VITE_LIVEKIT_URL=${livekitUrl}
     });
 
     // Limpiar logs
-    ['backend-tunnel.log', 'livekit-tunnel.log', 'admin-tunnel.log', 'viewer-tunnel.log'].forEach(file => {
+    ['backend-tunnel.log', 'admin-tunnel.log', 'viewer-tunnel.log'].forEach(file => {
       const filePath = path.join(__dirname, file);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);

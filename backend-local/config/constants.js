@@ -70,9 +70,7 @@ const buildCorsOrigins = () => {
   // Production tunnel patterns
   if (!isDev) {
     patterns.push(
-      /^https:\/\/.*\.trycloudflare\.com$/,
-      /^https:\/\/.*\.ngrok\.io$/,
-      /^https:\/\/.*\.ngrok-free\.app$/
+      /^https:\/\/.*\.trycloudflare\.com$/
     );
   }
 

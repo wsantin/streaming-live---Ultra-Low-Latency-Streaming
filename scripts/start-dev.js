@@ -96,7 +96,7 @@ class DevServer {
       
       // 3. Conexión a VPS LiveKit
       const spinner2 = ora('📡 Conectando a VPS LiveKit Server...').start();
-      this.log('🌐 Usando LiveKit VPS: wss://5.78.143.204');
+      this.log('🌐 Usando LiveKit VPS: wss://5.78.143.204.sslip.io');
       spinner2.succeed('✅ VPS LiveKit configurado');
       await this.sleep(1000);
       
@@ -158,7 +158,7 @@ class DevServer {
     
     console.log('\n📊 ' + chalk.bold('Servicios activos:'));
     console.log(`   - Redis Local: ${chalk.cyan('localhost:6379')}`);
-    console.log(`   - LiveKit VPS: ${chalk.cyan('wss://5.78.143.204')}`);
+    console.log(`   - LiveKit VPS: ${chalk.cyan('wss://5.78.143.204.sslip.io')}`);
     console.log(`   - Backend: ${chalk.cyan(`http://${this.localIP}:5001`)}`);
     console.log(`   - Admin: ${chalk.cyan(`http://${this.localIP}:3000`)}`);
     console.log(`   - Viewer: ${chalk.cyan(`http://${this.localIP}:3001`)}`);
@@ -168,7 +168,7 @@ class DevServer {
     console.log(`   - Viewer: ${chalk.magenta(`http://${this.localIP}:3001`)}`);
     
     console.log('\n🌐 ' + chalk.bold('LiveKit VPS:'));
-    console.log(`   - URL: ${chalk.green('wss://5.78.143.204')}`);
+    console.log(`   - URL: ${chalk.green('wss://5.78.143.204.sslip.io')}`);
     console.log(`   - API Key: ${chalk.yellow('APIwTqW8EBDZ3nk')}`);
     
     console.log('\n🛑 ' + chalk.bold('Para detener:') + ' npm run stop:dev\n');

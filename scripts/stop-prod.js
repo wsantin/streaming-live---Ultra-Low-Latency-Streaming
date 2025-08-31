@@ -57,7 +57,14 @@ class ProdStopper {
 
   async killSpecificNodeProcesses() {
     // Matar solo procesos Node.js en puertos específicos de producción
-    const prodPorts = [6001, 4173, 4174];
+    // NUNCA matar node.exe directamente para proteger Claude Code
+    const prodPorts = [
+      5001, // Backend production
+      3000, // Admin dev
+      3001, // Viewer dev  
+      4173, // Admin preview (vite preview default)
+      4174  // Viewer preview (custom port)
+    ];
     let killedAny = false;
     
     for (const port of prodPorts) {
@@ -79,16 +86,18 @@ class ProdStopper {
         if (match) {
           const pid = match[1];
           try {
+            // Solo matar proceso específico por PID (SEGURO para Claude Code)
             execSync(`taskkill /f /pid ${pid}`, { stdio: 'pipe' });
-            this.log(`🔪 Proceso en puerto ${port} terminado (PID: ${pid})`);
+            this.log(`🔪 Proceso en puerto ${port} terminado (PID: ${pid}) - Claude Code protegido`);
             return true;
           } catch {
-            // PID ya terminado
+            // PID ya terminado o inaccesible
           }
         }
       }
       return false;
     } catch {
+      // Puerto no en uso
       return false;
     }
   }
@@ -105,17 +114,6 @@ class ProdStopper {
     }
   }
 
-  async stopNgrok() {
-    const spinner = ora('🔪 Cerrando túneles ngrok...').start();
-    
-    const killed = await this.killProcessByName('ngrok.exe');
-    
-    if (killed) {
-      spinner.succeed('✅ Túneles ngrok cerrados');
-    } else {
-      spinner.warn('⚠️ No se encontraron túneles ngrok activos');
-    }
-  }
 
   async stopNodeProcesses() {
     const spinner = ora('🔪 Cerrando procesos Node.js de producción (protegiendo Claude Code)...').start();
@@ -159,7 +157,7 @@ class ProdStopper {
   async cleanupTempFiles() {
     const spinner = ora('🧹 Limpiando archivos temporales...').start();
     
-    const logFiles = ['backend-tunnel.log', 'livekit-ngrok.log', 'admin-tunnel.log', 'viewer-tunnel.log'];
+    const logFiles = ['backend-tunnel.log', 'admin-tunnel.log', 'viewer-tunnel.log'];
     let filesDeleted = 0;
 
     logFiles.forEach(file => {
@@ -182,10 +180,18 @@ class ProdStopper {
   }
 
   async killProductionPorts() {
-    const prodPorts = [6001, 4173, 4174, 7880];
+    // Puertos específicos del proyecto - NUNCA matar node.exe directamente
+    const prodPorts = [
+      5001, // Backend production
+      3000, // Admin dev
+      3001, // Viewer dev
+      4173, // Admin preview
+      4174, // Viewer preview
+      7880  // LiveKit (si se usa local)
+    ];
     let portProcessesKilled = 0;
     
-    this.log('🔍 Verificando puertos de producción...');
+    this.log('🔍 Verificando puertos de producción (protegiendo Claude Code)...');
     
     for (const port of prodPorts) {
       if (await this.killProcessByPort(port)) {
@@ -195,6 +201,8 @@ class ProdStopper {
 
     if (portProcessesKilled > 0) {
       this.log(`🔪 ${portProcessesKilled} procesos adicionales cerrados por puerto`);
+    } else {
+      this.log('✅ No se encontraron procesos adicionales en puertos objetivo');
     }
   }
 
@@ -204,7 +212,6 @@ class ProdStopper {
 
     // Detener servicios en orden
     await this.stopCloudflared();
-    await this.stopNgrok();
     await this.stopNodeProcesses();
     await this.stopLiveKit();
     await this.stopRedis();

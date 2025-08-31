@@ -91,7 +91,7 @@ class ProdServer {
     const spinner = ora('📡 Verificando conexión VPS LiveKit...').start();
     
     return new Promise((resolve) => {
-      this.log('🌐 Usando LiveKit VPS: wss://5.78.143.204');
+      this.log('🌐 Usando LiveKit VPS: wss://5.78.143.204.sslip.io');
       this.log('🔑 API Key: APIwTqW8EBDZ3nk');
       spinner.succeed('✅ VPS LiveKit configurado');
       resolve();
@@ -102,7 +102,7 @@ class ProdServer {
     const spinner = ora('🖥️ Iniciando Backend (Puerto 5001)...').start();
     
     return new Promise((resolve) => {
-      const backendProcess = spawn('npm', ['run', 'dev'], {
+      const backendProcess = spawn('npm', ['run', 'prod'], {
         cwd: path.join(__dirname, '..', 'backend-local'),
         stdio: 'pipe',
         shell: true
@@ -206,7 +206,7 @@ class ProdServer {
     const spinner = ora('⚙️ Configurando archivos .env con URLs de túneles...').start();
     
     const backendUrl = this.tunnelUrls.get('backend');
-    const livekitUrl = this.tunnelUrls.get('livekit')?.replace('https://', 'wss://');
+    const livekitUrl = this.tunnelUrls.get('livekit'); // Ya viene como wss://
     const adminUrl = this.tunnelUrls.get('admin');
     const viewerUrl = this.tunnelUrls.get('viewer');
 
@@ -242,7 +242,7 @@ class ProdServer {
 
     // Usar URLs de túneles si están disponibles, sino usar fallbacks locales
     const finalBackendUrl = backendUrl || `http://${localNetworkIP}:5001`;
-    const finalLivekitUrl = 'wss://5.78.143.204'; // Usar VPS LiveKit siempre
+    const finalLivekitUrl = 'wss://5.78.143.204.sslip.io'; // Usar VPS LiveKit siempre
     const finalViewerUrl = viewerUrl || `http://${localNetworkIP}:3001`;
     
     // Debug: mostrar qué URLs se van a usar
@@ -390,13 +390,13 @@ VITE_API_URL=${finalBackendUrl}`;
     
     console.log('\n🌐 ' + chalk.bold('URLs de Túneles Públicos (CLOUDFLARE):'));
     console.log(`   🖥️  Backend API: ${chalk.cyan(this.tunnelUrls.get('backend') || 'Ver backend-tunnel.log')} ${chalk.gray('(Cloudflare)')}`);
-    console.log(`   📡 LiveKit VPS: ${chalk.green('wss://5.78.143.204')} ${chalk.gray('(VPS - WebRTC)')}`);
+    console.log(`   📡 LiveKit VPS: ${chalk.green('wss://5.78.143.204.sslip.io')} ${chalk.gray('(VPS - WebRTC)')}`);
     console.log(`   👨‍💼 Admin Panel: ${chalk.magenta(this.tunnelUrls.get('admin') || 'Ver admin-tunnel.log')} ${chalk.gray('(Cloudflare)')}`);
     console.log(`   👁️  Viewer Panel: ${chalk.magenta(this.tunnelUrls.get('viewer') || 'Ver viewer-tunnel.log')} ${chalk.gray('(Cloudflare)')}`);
     
     console.log('\n🔧 ' + chalk.bold('Puertos Locales:'));
     console.log(`   - Backend: ${chalk.yellow('localhost:5001')}`);
-    console.log(`   - LiveKit VPS: ${chalk.green('wss://5.78.143.204')} ${chalk.gray('(Remoto)')}`);
+    console.log(`   - LiveKit VPS: ${chalk.green('wss://5.78.143.204.sslip.io')} ${chalk.gray('(Remoto)')}`);
     console.log(`   - Admin: ${chalk.yellow('localhost:3000')}`);
     console.log(`   - Viewer: ${chalk.yellow('localhost:3001')}`);
     console.log(`   - Redis: ${chalk.yellow('localhost:6379')}`);

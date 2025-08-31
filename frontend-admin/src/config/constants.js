@@ -2,7 +2,7 @@
 // ========================================
 
 // LiveKit VPS Configuration
-export const LIVEKIT_URL = 'wss://5.78.143.204'
+export const LIVEKIT_URL = 'wss://5.78.143.204.sslip.io'
 export const LIVEKIT_API_KEY = 'APIwTqW8EBDZ3nk'
 export const LIVEKIT_API_SECRET = '4gRkQFcWqxNzYGmkfmPzHN8dXL5V2KbJTsAd7FBwhPeM'
 

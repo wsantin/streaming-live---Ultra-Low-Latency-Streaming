@@ -32,6 +32,7 @@ const StreamingAdmin = () => {
   const [audioTrack, setAudioTrack] = useState(null);
   const [isCameraEnabled, setIsCameraEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [participantCount, setParticipantCount] = useState(0);
 
   // Refs
   const videoRef = useRef(null);
@@ -151,7 +152,22 @@ const StreamingAdmin = () => {
         console.log('✅ Connected to LiveKit VPS');
         setIsStreaming(true);
         setIsConnecting(false);
+        setParticipantCount(room.remoteParticipants.size);
         toast.success('Streaming started!');
+      });
+
+      room.on(RoomEvent.ParticipantConnected, (participant) => {
+        console.log('👤 Viewer joined:', participant.identity);
+        setParticipantCount(room.remoteParticipants.size);
+        toast.success(`Viewer joined! (${room.remoteParticipants.size} viewers)`);
+      });
+
+      room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+        console.log('👤 Viewer left:', participant.identity);
+        setParticipantCount(room.remoteParticipants.size);
+        if (room.remoteParticipants.size > 0) {
+          toast.info(`Viewer left (${room.remoteParticipants.size} viewers remaining)`);
+        }
       });
 
       room.on(RoomEvent.Disconnected, (reason) => {
@@ -508,6 +524,8 @@ const StreamingAdmin = () => {
                 <div className="live-badge">🔴 LIVE</div>
                 🏠 <strong>Room:</strong> {roomName}
                 <br />
+                👥 <strong>Viewers:</strong> {participantCount}
+                <br />
                 🎯 <strong>Streamer:</strong> {streamerName}
                 <br />
                 📹 <strong>Camera:</strong> {isCameraEnabled ? 'ON' : 'OFF'} | 
@@ -517,6 +535,7 @@ const StreamingAdmin = () => {
             
             {error && (
               <div className="error-status">
+                {API_URL}
                 ❌ <strong>Error:</strong> {error}
               </div>
             )}
@@ -560,13 +579,105 @@ const StreamingAdmin = () => {
         .video-container {
           position: relative;
           background: #000;
-          aspect-ratio: 16/9;
+          width: 100%;
+          height: 400px; /* Fixed height for desktop */
+          border-radius: 12px;
+          overflow: hidden;
         }
 
         .preview-video {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain; /* Show complete camera capture */
+          object-position: center;
+          background: #000; /* Fill empty space with black */
+        }
+
+        @media (max-width: 768px) {
+          .streaming-admin {
+            padding: 5px;
+            max-width: 100%;
+          }
+
+          .admin-container {
+            border-radius: 0; /* Full screen like TikTok */
+            box-shadow: none;
+          }
+
+          .admin-header {
+            padding: 15px;
+          }
+
+          .admin-header h1 {
+            font-size: 1.3rem;
+          }
+
+          .controls {
+            padding: 15px;
+          }
+
+          .media-controls {
+            flex-direction: row;
+            gap: 10px;
+          }
+
+          .control-btn {
+            flex: 1;
+            padding: 12px 8px;
+            font-size: 0.9rem;
+          }
+
+          /* TikTok-style full height video */
+          .video-container {
+            height: calc(100vh - 250px); /* More height minus controls */
+            min-height: 600px;
+            border-radius: 8px;
+            margin: 0 -5px; /* Extend to edges */
+          }
+
+          .preview-video {
+            object-fit: contain; /* Show complete camera */
+            object-position: center;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .streaming-admin {
+            padding: 2px;
+          }
+
+          .admin-header {
+            padding: 10px;
+          }
+
+          .controls {
+            padding: 10px;
+          }
+
+          /* Ultra immersive like TikTok mobile */
+          .video-container {
+            height: calc(100vh - 200px);
+            min-height: 550px;
+            border-radius: 4px;
+            margin: 0 -2px;
+          }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+          /* Tablet - Instagram style */
+          .video-container {
+            height: 450px;
+            border-radius: 12px;
+          }
+        }
+
+        @media (min-width: 1025px) {
+          /* Desktop - Facebook style */
+          .video-container {
+            height: 500px;
+            max-width: 800px;
+            margin: 0 auto;
+          }
         }
 
         .video-status {

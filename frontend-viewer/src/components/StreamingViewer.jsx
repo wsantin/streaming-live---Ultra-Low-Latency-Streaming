@@ -778,13 +778,18 @@ const StreamingViewer = () => {
         .video-container {
           position: relative;
           background: #000;
-          aspect-ratio: 16/9;
+          width: 100%;
+          height: 450px;
+          border-radius: 12px;
+          overflow: hidden;
         }
 
         .stream-video {
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain; /* Show complete video stream */
+          object-position: center;
+          background: #000; /* Fill empty space with black */
         }
 
         .no-video {
@@ -990,10 +995,47 @@ const StreamingViewer = () => {
         }
 
         @media (max-width: 768px) {
+          .streaming-viewer {
+            padding: 5px;
+            max-width: 100%;
+          }
+
+          .viewer-container {
+            border-radius: 0; /* Full screen like TikTok */
+            box-shadow: none;
+          }
+
+          .viewer-header {
+            padding: 15px;
+          }
+
+          .viewer-header h1 {
+            font-size: 1.3rem;
+          }
+
+          .room-selection {
+            padding: 15px;
+          }
+
+          .join-controls {
+            gap: 10px;
+          }
+
+          /* TikTok-style immersive video viewing */
+          .video-container {
+            height: calc(100vh - 150px); /* More immersive */
+            min-height: 650px;
+            border-radius: 8px;
+            margin: 0 -5px; /* Extend to edges */
+          }
+
+          .stream-video {
+            object-fit: contain; /* Show complete video */
+          }
+
           .stream-controls {
-            flex-direction: column;
-            gap: 20px;
-            align-items: stretch;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.9); /* Semi-transparent overlay */
           }
 
           .info-row {
@@ -1003,8 +1045,69 @@ const StreamingViewer = () => {
           }
 
           .media-status {
-            flex-direction: column;
-            gap: 8px;
+            flex-direction: row;
+            gap: 15px;
+            font-size: 0.85rem;
+          }
+
+          .video-overlay.top-left {
+            top: 15px;
+            left: 15px;
+          }
+
+          .room-info {
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            background: rgba(0, 0, 0, 0.8);
+          }
+        }
+
+        @media (max-width: 480px) {
+          .streaming-viewer {
+            padding: 2px;
+          }
+
+          /* Ultra immersive like TikTok mobile */
+          .video-container {
+            height: calc(100vh - 120px);
+            min-height: 600px;
+            border-radius: 4px;
+            margin: 0 -2px;
+          }
+
+          .stream-controls {
+            padding: 12px;
+          }
+
+          .leave-btn {
+            padding: 12px 20px;
+            font-size: 0.9rem;
+          }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+          /* Tablet - Instagram style */
+          .video-container {
+            height: 500px;
+            border-radius: 12px;
+          }
+        }
+
+        @media (min-width: 1025px) {
+          /* Desktop - YouTube/Facebook style */
+          .video-container {
+            height: 600px;
+            max-width: 1000px;
+            margin: 0 auto;
+          }
+        }
+
+          .viewer-header {
+            padding: 15px 10px;
+          }
+
+          .room-selection {
+            padding: 15px 10px;
           }
         }
       `}</style>
